@@ -41,8 +41,14 @@ def load_all_league_data(data_folder: str) -> pd.DataFrame:
     Raises:
         ValueError: If no valid CSV files found or all files failed to load
     """
+    subfolders = ["def", "mid", "fwd"]
     # Use glob to find all CSV files
-    csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
+    #csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
+    csv_files = []
+    for sub in subfolders:
+        csv_files.extend(
+            glob.glob(os.path.join(data_folder, sub, "*.csv"))
+        )
 
     # Handle empty folder
     if not csv_files:
