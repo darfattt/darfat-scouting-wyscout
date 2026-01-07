@@ -164,5 +164,105 @@ COMPOSITE_ATTRIBUTES = {
             {"stat": "Conceded goals per 90", "weight": -0.15, "use_percentile": True},
         ],
         "icon": "🧹"
+    },
+    # Forward-specific composite attributes
+    "Finishing": {
+        "display_name": "Finishing",
+        "description": "Clinical finishing and goal-scoring ability",
+        "components": [
+            {"stat": "Non-penalty goals per 90", "weight": 0.30, "use_percentile": True},
+            {"stat": "Goal conversion, %", "weight": 0.25, "use_percentile": True},
+            {"stat": "npxG per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Shots per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "Touches in box per 90", "weight": 0.10, "use_percentile": True},
+        ],
+        "icon": "⚽"
+    },
+    "Dribbling": {
+        "display_name": "Dribbling",
+        "description": "Ball control and 1v1 ability",
+        "components": [
+            {"stat": "Successful dribbles, %", "weight": 0.30, "use_percentile": True},
+            {"stat": "Progressive runs per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "Accelerations per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Duels won, %", "weight": 0.15, "use_percentile": True},
+            {"stat": "Fouls suffered per 90", "weight": 0.10, "use_percentile": True},
+        ],
+        "icon": "🎯"
+    },
+    "ChanceCreation": {
+        "display_name": "Chance Creation",
+        "description": "Playmaking and chance creation ability",
+        "components": [
+            {"stat": "Shot assists per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "xA per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Smart passes per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Progressive passes per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "Second assists per 90", "weight": 0.10, "use_percentile": True},
+            {"stat": "Third assists per 90", "weight": 0.10, "use_percentile": True},
+        ],
+        "icon": "🎨"
+    },
+    "WidePlay": {
+        "display_name": "Wide Play",
+        "description": "Crossing and wide attacking ability",
+        "components": [
+            {"stat": "Crosses per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "Accurate crosses, %", "weight": 0.20, "use_percentile": True},
+            {"stat": "Progressive runs per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Shot assists per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "xA per 90", "weight": 0.10, "use_percentile": True},
+            {"stat": "Successful dribbles, %", "weight": 0.10, "use_percentile": True},
+        ],
+        "icon": "🔄"
+    },
+    "AerialThreat": {
+        "display_name": "Aerial Threat",
+        "description": "Heading and aerial dominance ability",
+        "components": [
+            {"stat": "Aerial duels won, %", "weight": 0.35, "use_percentile": True},
+            {"stat": "Aerial duels won per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "Touches in box per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Non-penalty goals per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "Shots per 90", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "🦅"
+    },
+    "Movement": {
+        "display_name": "Movement",
+        "description": "Off-ball positioning and intelligent runs",
+        "components": [
+            {"stat": "Progressive runs per 90", "weight": 0.30, "use_percentile": True},
+            {"stat": "Touches in box per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "Duels won, %", "weight": 0.20, "use_percentile": True},
+            {"stat": "npxG per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "Fouls suffered per 90", "weight": 0.10, "use_percentile": True},
+        ],
+        "icon": "🏃"
+    },
+    "Pressing": {
+        "display_name": "Pressing",
+        "description": "Defensive work rate and pressing from attackers",
+        "components": [
+            {"stat": "Duels won, %", "weight": 0.30, "use_percentile": True},
+            {"stat": "pAdj Tkl+Int per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "Successful defensive actions per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Fouls per 90", "weight": -0.15, "use_percentile": True},  # Inverse stat
+            {"stat": "Progressive runs per 90", "weight": 0.10, "use_percentile": True},
+        ],
+        "icon": "🔥"
+    },
+    "Composure": {
+        "display_name": "Composure",
+        "description": "Decision making and technical quality under pressure",
+        "components": [
+            {"stat": "Accurate short / medium passes, %", "weight": 0.25, "use_percentile": True},
+            {"stat": "Goal conversion, %", "weight": 0.20, "use_percentile": True},
+            {"stat": "Non-penalty goals per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "xA per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "Shots per 90", "weight": 0.10, "use_percentile": True},
+            {"stat": "Fouls per 90", "weight": -0.15, "use_percentile": True},  # Inverse stat
+        ],
+        "icon": "🧘"
     }
 }

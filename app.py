@@ -7,6 +7,7 @@ import os
 from config.stat_categories import STAT_CATEGORIES, PLAYER_INFO_COLUMNS, PLAYER_COLORS
 from config.composite_attributes import COMPOSITE_ATTRIBUTES
 from config.defender_presets import DEFENDER_PRESETS
+from config.forward_presets import FORWARD_PRESETS
 from config.position_groups import POSITION_GROUPS, get_position_group_options
 from utils.data_loader import prepare_data_global, get_player_info, get_player_stats, get_all_stat_columns, calculate_composite_attributes, get_distinct_values, filter_players
 from utils.player_comparison import display_player_comparison, create_stats_table, display_composite_attributes, display_position_based_rankings
@@ -16,7 +17,7 @@ import pandas as pd
 
 # Page configuration
 st.set_page_config(
-    page_title="Player Scouting Tool",
+    page_title="Player Scouting Hub",
     page_icon="⚽",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -276,6 +277,39 @@ def render_player_comparison_page(df_filtered):
             create_stats_table(players_data, STAT_CATEGORIES)
 
 
+def get_relevant_presets(df_filtered):
+    """
+    Get relevant presets based on the position groups present in filtered data
+    
+    Args:
+        df_filtered: Filtered player dataframe
+    
+    Returns:
+        Dict of relevant presets
+    """
+    from config.position_groups import POSITION_GROUPS
+    
+    # Check what positions are in the filtered data
+    positions_in_data = df_filtered['Position'].unique()
+    
+    # Determine if data contains forward or defender positions
+    has_forwards = any(pos in positions_in_data for pos in ['CF', 'CF, AMF', 'CF, LW', 'CF, RW', 'CF, LWF', 'CF, RWF'])
+    has_defenders = any(pos in positions_in_data for pos in ['CB', 'LB', 'RB', 'CDM', 'DMF'])
+    
+    if has_forwards and has_defenders:
+        # Mixed data - provide all presets
+        all_presets = {}
+        all_presets.update(DEFENDER_PRESETS)
+        all_presets.update(FORWARD_PRESETS)
+        return all_presets
+    elif has_forwards:
+        # Forward only data
+        return FORWARD_PRESETS
+    else:
+        # Defender only data
+        return DEFENDER_PRESETS
+
+
 def render_player_finder_page(df_filtered):
     """
     Render Player Finder page content with interactive weight adjustment
@@ -294,10 +328,13 @@ def render_player_finder_page(df_filtered):
 
     col1, col2 = st.columns([3, 1])
 
+    # Get relevant presets based on position data
+    relevant_presets = get_relevant_presets(df_filtered)
+    
     with col1:
         selected_preset = st.selectbox(
-            "Choose a defender profile:",
-            options=list(DEFENDER_PRESETS.keys()),
+            "Choose a player profile:",
+            options=list(relevant_presets.keys()),
             help="Select a preset to start with. You can adjust weights below.",
             key="preset_selection"
         )
@@ -306,7 +343,7 @@ def render_player_finder_page(df_filtered):
         st.info(f"📊 {len(df_filtered)} players available")
 
     # Show preset info
-    preset_info = DEFENDER_PRESETS[selected_preset]
+    preset_info = relevant_presets[selected_preset]
     st.info(f"{preset_info['icon']} **{preset_info['display_name']}** - {preset_info['description']}")
 
     st.markdown("---")
@@ -429,6 +466,7 @@ def suggest_weights_from_profile(ref_composite_attrs: dict, top_n: int = 4) -> d
 
     # Get top N attributes
     top_attrs = sorted_attrs[:top_n]
+    print(f"Top Attrs : {top_attrs}")
 
     # Assign equal weights to top composite attributes
     # Weight per attribute = 1.0 / top_n (will be normalized in similarity calculation)
@@ -557,9 +595,55 @@ def render_player_similarity_page(df_filtered):
     # ========== METRIC WEIGHTS SECTION ==========
     st.markdown("### ⚖️ Adjust Metric Weights")
 
-    # Get composite attribute columns
+    # Get composite attribute columns with position-specific filtering
     from config.composite_attributes import COMPOSITE_ATTRIBUTES
-    composite_attr_names = list(COMPOSITE_ATTRIBUTES.keys())
+    from config.position_rankings import POSITION_RANKINGS
+    
+    # Determine position group for filtering composites
+    position_group = None
+    player_position = None
+    
+    # Get player position from filtered data
+    if 'ref_composite_attrs' in st.session_state and st.session_state.ref_composite_attrs:
+        # Get the reference player's position to determine key attributes
+        ref_player_row = df_filtered[df_filtered['Player'] == selected_player]
+        if len(ref_player_row) > 0:
+            player_position = ref_player_row.iloc[0]['Position']
+        
+        # Determine which position group this belongs to
+        for pos_group, pos_config in POSITION_RANKINGS.items():
+            if player_position and any(pos in player_position for pos in POSITION_GROUPS.get(pos_group, [])):
+                position_group = pos_group
+                break
+    
+    # All available composite attributes (options)
+    all_composites = list(COMPOSITE_ATTRIBUTES.keys())
+
+    # Default selection based on position
+    if position_group and position_group in POSITION_RANKINGS:
+        default_composites = POSITION_RANKINGS[position_group]["key_attributes"]
+    else:
+        default_composites = all_composites.copy()
+
+    # Safety: keep only valid composites
+    default_composites = [
+        c for c in default_composites if c in COMPOSITE_ATTRIBUTES
+    ]
+
+    # UI: user can freely add/remove
+    selected_composites = st.multiselect(
+        "Select attributes to compare",
+        options=all_composites,
+        default=default_composites
+    )
+
+    # Final composites used in calculation
+    relevant_composites = {
+        k: COMPOSITE_ATTRIBUTES[k]
+        for k in selected_composites
+    }
+
+    composite_attr_names = list(relevant_composites.keys())
     composite_columns = [f"COMP_{attr}" for attr in composite_attr_names]
 
     # Create display names mapping for composite attributes
@@ -570,9 +654,9 @@ def render_player_similarity_page(df_filtered):
 
     # Initialize session state for weights
     if 'similarity_weights' not in st.session_state:
-        # Default to ALL composite attributes with weight 1.0
+        # Default to ALL composite attributes with weight 0.2
         st.session_state.similarity_weights = {
-            f"COMP_{attr}": 1.0 
+            f"COMP_{attr}": 0.2 
             for attr in COMPOSITE_ATTRIBUTES.keys()
         }
 
@@ -581,8 +665,6 @@ def render_player_similarity_page(df_filtered):
 
     col_auto1, col_auto2 = st.columns([4, 1])
     with col_auto1:
-        st.caption("Click 'Auto-Populate' to reset weights based on current player profile")
-    with col_auto2:
         if st.button(
             "🎯 Auto-Populate",
             key="auto_weights_btn",
@@ -595,6 +677,7 @@ def render_player_similarity_page(df_filtered):
                     st.session_state.ref_composite_attrs,
                     top_n=4
                 )
+                print(f"New {new_weights}")
                 # Update session state
                 st.session_state.similarity_weights = new_weights
                 # Force UI re-render
@@ -614,7 +697,7 @@ def render_player_similarity_page(df_filtered):
                 if st.button("🔄 Reset to Default", key="reset_weights_btn"):
                     st.session_state.similarity_weights = default_weights.copy()
                     st.experimental_rerun()
-
+    
     # Weight adjustment UI
     with st.expander("⚙️ Configure Metric Weights", expanded=True):
         adjusted_weights = {}
@@ -645,7 +728,7 @@ def render_player_similarity_page(df_filtered):
             if selected_composite_metrics:
                 for comp_col in selected_composite_metrics:
                     display_name = composite_display_names[comp_col]
-                    default_weight = st.session_state.similarity_weights.get(comp_col, 1.0)
+                    default_weight = st.session_state.similarity_weights.get(comp_col, 0.0)
                     adjusted_weights[comp_col] = st.slider(
                         display_name,
                         min_value=0.0,
@@ -1303,7 +1386,7 @@ def display_similarity_player_detail(results_df, scorer, reference_player, weigh
 
 def main():
     # Title and description
-    st.title("Scouting Tool.")
+    st.title("Scouting Hub.")
 #    st.markdown("### Player Comparison & Defender Finder (darfat)")
 #    st.markdown("Compare players side-by-side and find top defenders using weighted scoring profiles.")
 
