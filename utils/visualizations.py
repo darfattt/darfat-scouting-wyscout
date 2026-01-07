@@ -1,0 +1,498 @@
+"""
+Visualization utilities for player comparison charts
+"""
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from typing import List, Dict
+import streamlit as st
+
+
+def get_percentile_color(percentile: float) -> str:
+    """
+    Get color based on percentile rank
+
+    Args:
+        percentile: Percentile value (0-100)
+
+    Returns:
+        Hex color string
+    """
+    if percentile >= 80:
+        return '#2ecc71'  # Green - Excellent
+    elif percentile >= 60:
+        return '#3498db'  # Blue - Good
+    elif percentile >= 40:
+        return '#f39c12'  # Orange - Average
+    else:
+        return '#e74c3c'  # Red - Below Average
+
+
+def create_combined_player_chart(
+    player_data: Dict,
+    stat_categories: Dict,
+    player_color: str
+):
+    """
+    Create combined player performance chart with all categories
+
+    Args:
+        player_data: Dictionary containing player stats
+        stat_categories: Dictionary of all stat categories
+        player_color: Primary color for the player
+
+    Returns:
+        matplotlib figure
+    """
+    # Collect all stats from all categories
+    all_percentiles = []
+    all_colors = []
+    all_labels = []
+    category_positions = []
+    category_names = []
+
+    current_position = 0
+
+    # Process each category in order: Defensive, Progressive, Offensive, General
+    for category_key in ['Defensive', 'Progressive', 'Offensive', 'General']:
+        if category_key not in stat_categories:
+            continue
+
+        category_config = stat_categories[category_key]
+        category_stats = category_config['stats']
+
+        # Mark the start position and name of this category
+        category_positions.append(current_position + len(category_stats) / 2)
+        category_names.append(category_key.upper())
+
+        # Add stats from this category
+        for stat in category_stats:
+            stat_col = stat['column']
+            percentile = player_data['stats'].get(stat_col, {}).get('percentile', 0)
+            all_percentiles.append(percentile)
+            all_colors.append(get_percentile_color(percentile))
+            all_labels.append(stat['display'])
+            current_position += 1
+
+    total_stats = len(all_percentiles)
+
+    # Create figure with extra space on left for category labels
+    fig, ax = plt.subplots(figsize=(8, total_stats * 0.35 + 1))
+
+    # Set background color
+    fig.patch.set_facecolor('#f5f3e8')
+    ax.set_facecolor('#f5f3e8')
+
+    # Create horizontal bars
+    y_positions = range(total_stats)
+    bars = ax.barh(
+        y_positions,
+        all_percentiles,
+        color=all_colors,
+        alpha=0.85,
+        edgecolor='white',
+        linewidth=1.5
+    )
+
+    # Add percentile text on bars
+    for i, (bar, percentile) in enumerate(zip(bars, all_percentiles)):
+        width = bar.get_width()
+        ax.text(
+            width + 2,
+            bar.get_y() + bar.get_height() / 2,
+            f'{percentile:.0f}',
+            va='center',
+            fontsize=8,
+            fontweight='bold',
+            color='#2c3e50'
+        )
+
+    # Add separator lines between categories
+    separator_positions = []
+    current_pos = 0
+    for category_key in ['Defensive', 'Progressive', 'Offensive', 'General']:
+        if category_key not in stat_categories:
+            continue
+        num_stats = len(stat_categories[category_key]['stats'])
+        current_pos += num_stats
+        if current_pos < total_stats:  # Don't add line after last category
+            separator_positions.append(current_pos - 0.5)
+
+    for sep_pos in separator_positions:
+        ax.axhline(y=sep_pos, color='#95a5a6', linestyle='--', linewidth=1.5, alpha=0.5)
+
+    # Customize axes
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(all_labels, fontsize=9)
+    ax.set_xlabel('Percentile Rank', fontsize=10, fontweight='bold', color='#2c3e50')
+    ax.set_xlim(0, 105)
+    ax.set_xticks([0, 25, 50, 75, 100])
+
+    # Add grid
+    ax.grid(axis='x', alpha=0.3, linestyle='--', linewidth=0.5)
+    ax.set_axisbelow(True)
+
+    # Remove top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#95a5a6')
+    ax.spines['bottom'].set_color('#95a5a6')
+
+    # Invert y-axis to have first stat on top
+    ax.invert_yaxis()
+
+    # Add vertical category labels on the left
+    # Adjust the position to be in the left margin
+    fig.subplots_adjust(left=0.35)
+
+    for cat_pos, cat_name in zip(category_positions, category_names):
+        ax.text(
+            110,  # Position in the left margin
+            cat_pos,
+            cat_name,
+            rotation=90,
+            va='center',
+            ha='center',
+            fontsize=11,
+            fontweight='bold',
+            color='#34495e',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='#ecf0f1', edgecolor='#95a5a6', linewidth=1)
+        )
+
+    # Adjust layout
+    plt.tight_layout()
+
+    return fig
+
+
+def create_player_header(player_info: Dict, color: str):
+    """
+    Create a styled player information header
+
+    Args:
+        player_info: Dictionary with player information
+        color: Color for the header accent
+
+    Returns:
+        HTML string for player header
+    """
+    header_html = f"""
+    <div style="
+        background: linear-gradient(135deg, {color}15 0%, {color}05 100%);
+        border-left: 5px solid {color};
+        border-radius: 8px;
+        padding: 20px 15px;
+        margin: 10px 0 20px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    ">
+        <h2 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 22px; font-weight: 700;">
+            {player_info['name']}
+        </h2>
+        <div style="margin: 0; color: #7f8c8d; font-size: 13px; line-height: 1.6;">
+            <strong>Age:</strong> {player_info['age']} |
+            <strong>Position:</strong> {player_info['position']}<br>
+            <strong>Team:</strong> {player_info['team']} |
+            <strong>Country:</strong> {player_info['country']}
+        </div>
+    </div>
+    """
+    return header_html
+
+
+def display_player_comparison(
+    players_data: List[Dict],
+    stat_categories: Dict,
+    player_colors: List[str]
+):
+    """
+    Display complete player comparison with side-by-side column layout
+
+    Args:
+        players_data: List of player data dictionaries
+        stat_categories: Dictionary of stat categories
+        player_colors: List of colors for players
+    """
+    num_players = len(players_data)
+
+    # Create columns for each player
+    st.markdown("### Player Comparison")
+
+    # Create columns for player headers and combined charts
+    cols = st.columns(num_players)
+
+    for idx, (col, player_data) in enumerate(zip(cols, players_data)):
+        with col:
+            # Display player header
+            st.markdown(
+                create_player_header(player_data['info'], player_colors[idx]),
+                unsafe_allow_html=True
+            )
+
+            # Display combined chart with all categories
+            fig = create_combined_player_chart(
+                player_data,
+                stat_categories,
+                player_colors[idx]
+            )
+
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
+
+
+def create_stats_table(players_data: List[Dict], stat_categories: Dict):
+    """
+    Create a detailed statistics table for selected players
+
+    Args:
+        players_data: List of player data dictionaries
+        stat_categories: Dictionary of stat categories
+    """
+    import pandas as pd
+
+    for category_key, category_config in stat_categories.items():
+        st.markdown(f"#### {category_config['display_name']} - Detailed Stats")
+
+        # Prepare data for table
+        table_data = []
+        for stat in category_config['stats']:
+            row = {'Statistic': stat['display']}
+            for player_data in players_data:
+                stat_col = stat['column']
+                value = player_data['stats'].get(stat_col, {}).get('value', 0)
+                percentile = player_data['stats'].get(stat_col, {}).get('percentile', 0)
+                row[player_data['info']['name']] = f"{value:.2f} ({percentile:.0f}%)"
+            table_data.append(row)
+
+        df = pd.DataFrame(table_data)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+
+def display_composite_attributes(
+    players_data: List[Dict],
+    player_colors: List[str]
+):
+    """
+    Display composite attributes comparison for selected players
+
+    Args:
+        players_data: List of player data dictionaries (with 'composite_attributes' key)
+        player_colors: List of colors for players
+    """
+    import pandas as pd
+    import numpy as np
+
+    st.markdown("---")
+    st.markdown("### 📊 Composite Attributes Analysis")
+    st.markdown("*Calculated from weighted combinations of key statistics*")
+
+    # Get all attribute names from the first player
+    if not players_data or 'composite_attributes' not in players_data[0]:
+        st.warning("Composite attributes not calculated for players.")
+        return
+
+    attribute_names = list(players_data[0]['composite_attributes'].keys())
+
+    # Create a chart for each attribute showing all players
+    for attr_key in attribute_names:
+        attr_data = players_data[0]['composite_attributes'][attr_key]
+        attr_name = attr_data['display_name']
+        attr_icon = attr_data.get('icon', '')
+        attr_desc = attr_data.get('description', '')
+
+        # Collect scores for all players
+        player_scores = []
+        for player_data in players_data:
+            score = player_data['composite_attributes'][attr_key]['score']
+            player_scores.append({
+                'name': player_data['info']['name'],
+                'score': score
+            })
+
+        # Sort by score descending
+        player_scores.sort(key=lambda x: x['score'], reverse=True)
+
+        # Create horizontal bar chart
+        fig, ax = plt.subplots(figsize=(10, max(2, len(players_data) * 0.6)))
+        fig.patch.set_facecolor('#f5f3e8')
+        ax.set_facecolor('#f5f3e8')
+
+        # Prepare data
+        names = [p['name'] for p in player_scores]
+        scores = [p['score'] for p in player_scores]
+
+        # Assign colors based on original player order
+        bar_colors = []
+        for player_score in player_scores:
+            # Find this player's index in original players_data
+            for idx, player_data in enumerate(players_data):
+                if player_data['info']['name'] == player_score['name']:
+                    bar_colors.append(player_colors[idx])
+                    break
+
+        y_positions = range(len(names))
+        bars = ax.barh(
+            y_positions,
+            scores,
+            color=bar_colors,
+            alpha=0.85,
+            edgecolor='white',
+            linewidth=2
+        )
+
+        # Add score labels on bars
+        for i, (bar, score) in enumerate(zip(bars, scores)):
+            width = bar.get_width()
+            ax.text(
+                width + 1,
+                bar.get_y() + bar.get_height() / 2,
+                f'{score:.1f}',
+                va='center',
+                fontsize=11,
+                fontweight='bold',
+                color='#2c3e50'
+            )
+
+        # Add rank numbers
+        for i, (bar, rank) in enumerate(zip(bars, range(1, len(names) + 1))):
+            ax.text(
+                -2,
+                bar.get_y() + bar.get_height() / 2,
+                f'#{rank}',
+                va='center',
+                ha='right',
+                fontsize=10,
+                fontweight='bold',
+                color='#7f8c8d'
+            )
+
+        # Customize axes
+        ax.set_yticks(y_positions)
+        ax.set_yticklabels(names, fontsize=11, fontweight='bold')
+        ax.set_xlabel('Score', fontsize=10, fontweight='bold', color='#2c3e50')
+        ax.set_title(
+            f'{attr_icon} {attr_name}\n{attr_desc}',
+            fontsize=12,
+            fontweight='bold',
+            color='#2c3e50',
+            pad=15
+        )
+
+        # Set x-axis limits
+        max_score = max(scores) if scores else 100
+        ax.set_xlim(-5, max_score + 10)
+
+        # Add grid
+        ax.grid(axis='x', alpha=0.3, linestyle='--', linewidth=0.5)
+        ax.set_axisbelow(True)
+
+        # Remove spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['bottom'].set_color('#95a5a6')
+
+        # Invert y-axis to show highest score on top
+        ax.invert_yaxis()
+
+        plt.tight_layout()
+        st.pyplot(fig, use_container_width=True)
+        plt.close(fig)
+
+
+def display_position_based_rankings(
+    players_data: List[Dict],
+    position_type: str,
+    player_colors: List[str]
+):
+    """
+    Display position-specific rankings for key composite attributes
+
+    Args:
+        players_data: List of player data dictionaries (with 'composite_attributes' key)
+        position_type: Position type ("DM/CM" or "CB")
+        player_colors: List of colors for players
+    """
+    from config.position_rankings import POSITION_RANKINGS
+
+    if position_type not in POSITION_RANKINGS:
+        return
+
+    position_config = POSITION_RANKINGS[position_type]
+    key_attributes = position_config['key_attributes']
+
+    st.markdown("---")
+    st.markdown("### 🏆 Position-Based Rankings")
+    st.markdown(f"*Key attributes for {position_config['display_name']}*")
+
+    # Medal icons for top 3
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+
+    # Create ranking data for each key attribute
+    ranking_data = []
+
+    for attr_key in key_attributes:
+        # Collect scores for all players for this attribute
+        player_scores = []
+        for idx, player_data in enumerate(players_data):
+            if 'composite_attributes' not in player_data:
+                continue
+
+            if attr_key not in player_data['composite_attributes']:
+                continue
+
+            score = player_data['composite_attributes'][attr_key]['score']
+            player_scores.append({
+                'name': player_data['info']['name'],
+                'score': score,
+                'color': player_colors[idx]
+            })
+
+        # Sort by score descending
+        player_scores.sort(key=lambda x: x['score'], reverse=True)
+
+        # Build ranking string
+        ranking_parts = []
+        for rank, player in enumerate(player_scores[:3], 1):  # Top 3 only
+            medal = medals.get(rank, "")
+            ranking_parts.append(f"{medal} #{rank} {player['name']} ({player['score']:.1f})")
+
+        ranking_string = " • ".join(ranking_parts) if ranking_parts else "N/A"
+
+        # Get attribute display info
+        attr_info = players_data[0]['composite_attributes'].get(attr_key, {})
+        attr_icon = attr_info.get('icon', '')
+        attr_display = attr_info.get('display_name', attr_key)
+
+        ranking_data.append({
+            'Attribute': f"{attr_icon} {attr_display}",
+            'Rankings': ranking_string
+        })
+
+    # Display as a styled dataframe
+    import pandas as pd
+    df_rankings = pd.DataFrame(ranking_data)
+
+    # Custom CSS for the table
+    st.markdown("""
+    <style>
+    .rankings-table {
+        font-size: 14px;
+        line-height: 1.8;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.dataframe(
+        df_rankings,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Attribute": st.column_config.TextColumn(
+                "Attribute",
+                width="medium",
+            ),
+            "Rankings": st.column_config.TextColumn(
+                "Top Players",
+                width="large",
+            )
+        }
+    )
