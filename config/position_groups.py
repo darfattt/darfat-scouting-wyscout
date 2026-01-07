@@ -13,7 +13,14 @@ POSITION_GROUPS = {
         # Fullback positions
         "LB", "RB", "WB", "RWB", "LWB", "LB5", "RB5", "LWB5", "RWB5"
     ],
-    "DM": ["CDM", "RDM", "LDM", "DMF", "RDMF", "LDMF", "DM"]
+    "DM": ["CDM", "RDM", "LDM", "DMF", "RDMF", "LDMF", "DM"],
+    # Forward position groups
+    "CF": ["CF"],  # Pure centre forwards
+    "Winger": ["LW", "RW", "LWF", "RWF",  "RM",  "LM"],
+    "AM": ["AMF", "LCMF", "LAMF", "RAMF","LCMF3", "RCMF3"],
+    "Forward": ["CF","LW", "RW", "LWF", "RWF", "AMF", "LCMF", "LAMF", "RAMF",  "RM",  "LM"],
+    "Left Winger": ["LW", "LWF", "LM"],
+    "Right Winger": ["RW", "RWF", "RM"]
 }
 
 
