@@ -6,7 +6,7 @@ import numpy as np
 from typing import Dict, List
 import glob
 import os
-
+import re
 
 def load_player_data(csv_path: str) -> pd.DataFrame:
     """
@@ -126,7 +126,13 @@ def filter_players(df: pd.DataFrame, positions: List[str] = None, leagues: List[
 
     # Apply position filter if specified
     if positions and len(positions) > 0:
-        filtered_df = filtered_df[filtered_df['Position'].isin(positions)]
+        #filtered_df = filtered_df[filtered_df['Position'].isin(positions)]
+        filtered_df = filtered_df[
+            filtered_df['Position']
+            .str.split(',')
+            .apply(lambda pos_list: any(p.strip() in positions for p in pos_list))
+        ]
+        
 
     # Apply league filter if specified
     if leagues and len(leagues) > 0:
@@ -138,14 +144,17 @@ def filter_players(df: pd.DataFrame, positions: List[str] = None, leagues: List[
 def prepare_data_global(data_folder: str, stat_categories: Dict) -> pd.DataFrame:
     """
     Load all league data and calculate GLOBAL percentiles across all players
+    Also calculate composite attributes for all players
 
     Args:
         data_folder: Path to folder containing league CSV files
         stat_categories: Dictionary of stat categories
 
     Returns:
-        DataFrame with all players and global percentile calculations
+        DataFrame with all players, global percentile calculations, and composite attributes
     """
+    from config.composite_attributes import COMPOSITE_ATTRIBUTES
+
     # Load all data
     df = load_all_league_data(data_folder)
 
@@ -154,6 +163,9 @@ def prepare_data_global(data_folder: str, stat_categories: Dict) -> pd.DataFrame
 
     # Calculate GLOBAL percentiles (across ALL players from ALL leagues)
     df = calculate_percentiles(df, stat_columns)
+
+    # Calculate composite attributes for all players
+    df = calculate_composite_attributes_batch(df, stat_columns, COMPOSITE_ATTRIBUTES)
 
     return df
 
@@ -343,3 +355,61 @@ def calculate_composite_attributes(player_stats: Dict, composite_attributes: Dic
         }
 
     return composite_scores
+
+
+def calculate_composite_attributes_batch(df: pd.DataFrame, stat_columns: List[str], composite_attributes: Dict) -> pd.DataFrame:
+    """
+    Calculate composite attributes for all players in DataFrame
+
+    Args:
+        df: DataFrame with player data and percentile columns
+        stat_columns: List of all stat column names
+        composite_attributes: Dictionary defining composite attribute formulas
+
+    Returns:
+        DataFrame with added composite attribute columns (prefixed with COMP_)
+    """
+    df_copy = df.copy()
+
+    # For each composite attribute
+    for attr_key, attr_config in composite_attributes.items():
+        scores = []
+
+        # Calculate for each player
+        for idx, row in df_copy.iterrows():
+            score = 0.0
+            total_weight = 0.0
+
+            for component in attr_config['components']:
+                stat_name = component['stat']
+                weight = component['weight']
+                use_percentile = component.get('use_percentile', True)
+
+                # Skip if stat not available
+                if stat_name not in df_copy.columns:
+                    continue
+
+                if use_percentile:
+                    # Use percentile column
+                    percentile_col = f"{stat_name}_percentile"
+                    if percentile_col in df_copy.columns:
+                        value = row.get(percentile_col, 50)
+                    else:
+                        value = 50
+                else:
+                    # Use raw value
+                    value = row.get(stat_name, 0)
+
+                # Handle NaN
+                if pd.isna(value):
+                    value = 50 if use_percentile else 0
+
+                score += weight * value
+                total_weight += abs(weight)
+
+            scores.append(score)
+
+        # Add composite attribute column to DataFrame
+        df_copy[f"COMP_{attr_key}"] = scores
+
+    return df_copy

@@ -1,0 +1,476 @@
+"""
+Player Finder visualization with defender preset scoring
+"""
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from typing import Dict, List, Tuple
+
+
+class DefenderScorer:
+    """Calculate weighted scores for defender presets"""
+
+    def __init__(self, presets: Dict):
+        """
+        Args:
+            presets: DEFENDER_PRESETS dictionary
+        """
+        self.presets = presets
+        self.negative_metrics = [
+            'Fouls per 90',
+            'Cards per 90',
+            'Conceded goals per 90'
+        ]  # Metrics where lower is better
+
+    def calculate_preset_score(
+        self,
+        df: pd.DataFrame,
+        preset_name: str,
+        top_n_limit: int = 30
+    ) -> Tuple[pd.DataFrame, Dict[str, float]]:
+        """
+        Calculate weighted score for all players using preset
+
+        Args:
+            df: DataFrame with player data
+            preset_name: Key from DEFENDER_PRESETS
+            top_n_limit: Return only top N players
+
+        Returns:
+            (result_df, normalized_weights)
+        """
+        preset = self.presets[preset_name]
+        components = preset['components']
+
+        # Extract weights and validate metrics exist
+        weights = {}
+        for comp in components:
+            metric = comp['stat']
+            if metric not in df.columns:
+                raise ValueError(f"Metric '{metric}' not found in dataframe")
+            weights[metric] = comp['weight']
+
+        # Normalize weights to sum to 1.0
+        total_weight = sum(abs(w) for w in weights.values())
+        normalized_weights = {k: v/total_weight for k, v in weights.items()}
+
+        # Calculate normalized scores (0-100 scale)
+        result_df = df.copy()
+        weighted_scores = pd.Series(0.0, index=df.index)
+
+        for metric, weight in normalized_weights.items():
+            col_values = df[metric]
+            col_min = col_values.min()
+            col_max = col_values.max()
+
+            if col_max == col_min:
+                normalized_values = pd.Series(50.0, index=df.index)
+            else:
+                # Normalize to 0-100 scale
+                if metric in self.negative_metrics and weight < 0:
+                    # Negative metric with negative weight: invert normalization
+                    normalized_values = 100 - ((col_values - col_min) / (col_max - col_min) * 100)
+                else:
+                    normalized_values = (col_values - col_min) / (col_max - col_min) * 100
+
+            # Add weighted contribution
+            weighted_scores += normalized_values * abs(weight)
+
+        # Add score to result
+        score_column = f'{preset_name.replace(" ", "_")}_Score'
+        result_df[score_column] = weighted_scores
+
+        # Sort by score (descending)
+        result_df = result_df.sort_values(score_column, ascending=False).reset_index(drop=True)
+        result_df['Rank'] = range(1, len(result_df) + 1)
+
+        # Calculate percentile rank
+        percentile_column = f'{score_column}_Percentile'
+        result_df[percentile_column] = result_df[score_column].rank(pct=True) * 100
+
+        # Return top N players only
+        top_players = result_df.head(top_n_limit)
+
+        # Select relevant columns
+        display_cols = [
+            'Rank', 'Player', 'Team', 'Position', 'Age',
+            score_column, percentile_column
+        ] + list(normalized_weights.keys())
+
+        # Filter to only include columns that exist
+        display_cols = [col for col in display_cols if col in top_players.columns]
+
+        return top_players[display_cols], normalized_weights
+
+    def get_metric_contributions(
+        self,
+        df: pd.DataFrame,
+        player_idx: int,
+        preset_name: str
+    ) -> Dict[str, Dict]:
+        """
+        Get individual metric contributions to a player's total score
+
+        Args:
+            df: DataFrame with player data
+            player_idx: Index of player in dataframe
+            preset_name: Key from DEFENDER_PRESETS
+
+        Returns:
+            Dictionary of metric contributions
+        """
+        preset = self.presets[preset_name]
+        components = preset['components']
+
+        # Extract weights
+        weights = {}
+        for comp in components:
+            metric = comp['stat']
+            weights[metric] = comp['weight']
+
+        # Normalize weights
+        total_weight = sum(abs(w) for w in weights.values())
+        normalized_weights = {k: v/total_weight for k, v in weights.items()}
+
+        contributions = {}
+        for metric, weight in normalized_weights.items():
+            if metric in df.columns:
+                col_values = df[metric]
+                col_min = col_values.min()
+                col_max = col_values.max()
+                player_value = df.loc[player_idx, metric]
+
+                if col_max == col_min:
+                    normalized_value = 50.0
+                else:
+                    if metric in self.negative_metrics and weight < 0:
+                        normalized_value = 100 - ((player_value - col_min) / (col_max - col_min) * 100)
+                    else:
+                        normalized_value = (player_value - col_min) / (col_max - col_min) * 100
+
+                    # Clamp to 0-100
+                    normalized_value = max(0, min(100, normalized_value))
+
+                contributions[metric] = {
+                    'raw_value': player_value,
+                    'normalized_score': normalized_value,
+                    'weight': weight,
+                    'weighted_contribution': normalized_value * abs(weight)
+                }
+
+        return contributions
+
+
+def get_percentile_color(percentile_rank):
+    """Return color code based on percentile range"""
+    if percentile_rank >= 90:
+        return '#1a5f27'  # Elite dark green
+    elif percentile_rank >= 80:
+        return '#1a9641'  # Excellent green
+    elif percentile_rank >= 70:
+        return '#4caf50'  # Very good green
+    elif percentile_rank >= 60:
+        return '#73c378'  # Good medium green
+    elif percentile_rank >= 50:
+        return '#a4d65e'  # Above average light green
+    elif percentile_rank >= 40:
+        return '#f9d057'  # Average yellow
+    elif percentile_rank >= 30:
+        return '#ffa726'  # Below average orange
+    elif percentile_rank >= 20:
+        return '#fc8d59'  # Poor light orange
+    elif percentile_rank >= 10:
+        return '#e57373'  # Bad light red
+    else:
+        return '#d73027'  # Very bad red
+
+
+def style_weighted_score(val, percentile_rank):
+    """Style function for weighted score column"""
+    color = get_percentile_color(percentile_rank)
+    return f'background-color: {color}; color: white; font-weight: bold'
+
+
+def show_player_finder(filtered_df: pd.DataFrame, presets: Dict, selected_preset: str):
+    """
+    Main Player Finder visualization
+
+    Args:
+        filtered_df: Player dataframe already filtered by global filters (league + position)
+        presets: Dictionary of preset configurations (DEFENDER_PRESETS or custom)
+        selected_preset: Name of the preset to use (key from presets dict)
+    """
+    st.header("🎯 Player Finder - Defender Profiles")
+
+    # Check for empty dataframe
+    if len(filtered_df) == 0:
+        st.warning("⚠️ No players match the selected filters. Adjust filters in sidebar.")
+        return
+
+    # Initialize scorer
+    scorer = DefenderScorer(presets)
+
+    # Show summary
+    preset_info = presets[selected_preset]
+    num_metrics = len(preset_info.get('components', []))
+
+    st.info(
+        f"🔍 **Profile: {preset_info['display_name']}** {preset_info.get('icon', '')}  \n"
+        f"**Available Players**: {len(filtered_df)} players from {filtered_df['Team'].nunique()} teams  \n"
+        f"**Description**: {preset_info['description']}  \n"
+        f"**Metrics**: {num_metrics} metrics with custom weights"
+    )
+
+    # Calculate scores
+    with st.spinner("Calculating profile scores..."):
+        try:
+            results_df, used_weights = scorer.calculate_preset_score(
+                filtered_df,
+                selected_preset,
+                top_n_limit=30
+            )
+        except ValueError as e:
+            st.error(f"❌ Error calculating scores: {str(e)}")
+            st.info("Some metrics may be missing from the dataset.")
+            return
+
+    # Display results in tabs
+    st.subheader("📊 Profile Scoring Results")
+
+    tab1, tab2, tab3 = st.tabs(["📋 Results Table", "📊 Score Distribution", "🔍 Player Detail"])
+
+    with tab1:
+        # Results table with styling
+        display_results_table(results_df, selected_preset, used_weights)
+
+    with tab2:
+        # Score distribution visualizations
+        display_score_distribution(results_df, selected_preset)
+
+    with tab3:
+        # Individual player analysis
+        display_player_detail(results_df, filtered_df, selected_preset, used_weights, scorer)
+
+
+def display_results_table(results_df, preset_name, used_weights):
+    """Display top 30 results table with color coding"""
+    st.markdown("#### Top 30 Performers")
+
+    score_col = f'{preset_name.replace(" ", "_")}_Score'
+    percentile_col = f'{score_col}_Percentile'
+
+    # Format scores
+    display_df = results_df.copy()
+    display_df[score_col] = display_df[score_col].round(2)
+    display_df[percentile_col] = display_df[percentile_col].round(1)
+
+    # Column configuration
+    column_config = {
+        'Rank': st.column_config.NumberColumn("#", width="small"),
+        score_col: st.column_config.NumberColumn(
+            "Weighted Score",
+            format="%.1f",
+            width="medium"
+        ),
+        percentile_col: st.column_config.ProgressColumn(
+            "Percentile Rank",
+            min_value=0,
+            max_value=100,
+            format="%.0f%%",
+            width="medium"
+        )
+    }
+
+    # Add metric column configs
+    for metric in used_weights.keys():
+        if metric in display_df.columns:
+            column_config[metric] = st.column_config.NumberColumn(
+                metric,
+                format="%.1f",
+                width="small"
+            )
+
+    # Apply styling (color-code the score column)
+    styled_df = display_df.style.apply(
+        lambda row: [
+            style_weighted_score(row[score_col], row[percentile_col])
+            if col == score_col else ''
+            for col in display_df.columns
+        ],
+        axis=1
+    )
+
+    # Display table
+    st.dataframe(
+        styled_df,
+        column_config=column_config,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # Summary stats
+    st.markdown("##### 📊 Summary Statistics")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Top 30 Players", len(display_df))
+    with col2:
+        st.metric("Top Score", f"{display_df[score_col].max():.1f}")
+    with col3:
+        st.metric("Average Score", f"{display_df[score_col].mean():.1f}")
+    with col4:
+        st.metric("Median Score", f"{display_df[score_col].median():.1f}")
+
+    # Weights used
+    st.markdown("##### ⚖️ Weights Used")
+    weights_df = pd.DataFrame([
+        {'Metric': metric, 'Weight': f"{weight:.2f}", 'Percentage': f"{abs(weight)*100:.1f}%"}
+        for metric, weight in used_weights.items()
+    ])
+    st.dataframe(weights_df, use_container_width=True, hide_index=True)
+
+
+def display_score_distribution(results_df, preset_name):
+    """Display score distribution visualizations"""
+    st.markdown("#### Score Distribution Analysis")
+
+    score_col = f'{preset_name.replace(" ", "_")}_Score'
+
+    # Score distribution histogram
+    fig_hist = px.histogram(
+        results_df,
+        x=score_col,
+        nbins=15,
+        title=f"{preset_name} Score Distribution (Top 30 Players)",
+        color_discrete_sequence=['#3498db'],
+        labels={score_col: f"{preset_name} Score", 'count': 'Number of Players'}
+    )
+    fig_hist.update_layout(
+        height=400,
+        showlegend=False,
+        plot_bgcolor='#f5f3e8',
+        paper_bgcolor='#f5f3e8'
+    )
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+    # Top 10 vs Bottom 10 comparison (if we have enough players)
+    if len(results_df) >= 20:
+        st.markdown("#### Top 10 vs Bottom 10 Comparison")
+        top_10 = results_df.head(10)
+        bottom_10 = results_df.tail(10)
+
+        fig_compare = go.Figure()
+        fig_compare.add_trace(go.Bar(
+            y=top_10['Player'][::-1],  # Reverse for better display
+            x=top_10[score_col][::-1],
+            orientation='h',
+            name='Top 10',
+            marker_color='#2ecc71'
+        ))
+
+        fig_compare.add_trace(go.Bar(
+            y=bottom_10['Player'],
+            x=bottom_10[score_col],
+            orientation='h',
+            name='Bottom 10 (of Top 30)',
+            marker_color='#e74c3c'
+        ))
+
+        fig_compare.update_layout(
+            title=f"{preset_name} - Top vs Bottom Performers",
+            xaxis_title=f"{preset_name} Score",
+            height=600,
+            barmode='group',
+            plot_bgcolor='#f5f3e8',
+            paper_bgcolor='#f5f3e8'
+        )
+        st.plotly_chart(fig_compare, use_container_width=True)
+
+
+def display_player_detail(results_df, df_to_score, preset_name, used_weights, scorer):
+    """Display individual player analysis"""
+    st.markdown("#### Individual Player Analysis")
+
+    # Player selection for detailed view
+    selected_player = st.selectbox(
+        "Select a player for detailed breakdown:",
+        options=results_df['Player'].tolist(),
+        key="player_detail_select"
+    )
+
+    if selected_player:
+        player_data = results_df[results_df['Player'] == selected_player].iloc[0]
+        player_idx = df_to_score[df_to_score['Player'] == selected_player].index[0]
+
+        score_col = f'{preset_name.replace(" ", "_")}_Score'
+        percentile_col = f'{score_col}_Percentile'
+
+        # Player overview
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.metric("Rank", f"#{int(player_data['Rank'])}")
+        with col2:
+            st.metric("Player", selected_player)
+        with col3:
+            st.metric("Team", player_data['Team'])
+        with col4:
+            st.metric("Score", f"{player_data[score_col]:.1f}")
+        with col5:
+            st.metric("Percentile", f"{player_data[percentile_col]:.1f}%")
+
+        # Metric breakdown
+        st.markdown("##### Metric Contributions")
+        contributions = scorer.get_metric_contributions(
+            df_to_score, player_idx, preset_name
+        )
+
+        if contributions:
+            # Create enhanced breakdown dataframe
+            breakdown_data = []
+            for metric, data in contributions.items():
+                breakdown_data.append({
+                    'Metric': metric,
+                    'Raw Value': f"{data['raw_value']:.1f}",
+                    'Normalized Score': f"{data['normalized_score']:.1f}",
+                    'Weight': f"{data['weight']:.2f}",
+                    'Weighted Contribution': f"{data['weighted_contribution']:.1f}"
+                })
+
+            breakdown_df = pd.DataFrame(breakdown_data)
+            st.dataframe(breakdown_df, use_container_width=True, hide_index=True)
+
+            # Enhanced contribution chart
+            fig_contrib = px.bar(
+                breakdown_df,
+                x='Metric',
+                y=[float(x) for x in breakdown_df['Weighted Contribution']],
+                title=f"Weighted Metric Contributions for {selected_player}",
+                color=[float(x) for x in breakdown_df['Normalized Score']],
+                color_continuous_scale=[
+                    [0.0, '#d73027'],   # Very bad red
+                    [0.1, '#e57373'],   # Bad light red
+                    [0.2, '#fc8d59'],   # Poor light orange
+                    [0.3, '#ffa726'],   # Below average orange
+                    [0.4, '#f9d057'],   # Average yellow
+                    [0.5, '#a4d65e'],   # Above average light green
+                    [0.6, '#73c378'],   # Good medium green
+                    [0.7, '#4caf50'],   # Very good green
+                    [0.8, '#1a9641'],   # Excellent green
+                    [1.0, '#1a5f27']    # Elite dark green
+                ],
+                labels={'color': 'Normalized Score', 'y': 'Weighted Contribution'}
+            )
+            fig_contrib.update_layout(
+                height=400,
+                showlegend=True,
+                xaxis_title="Metrics",
+                yaxis_title="Weighted Contribution to Total Score",
+                plot_bgcolor='#f5f3e8',
+                paper_bgcolor='#f5f3e8'
+            )
+            fig_contrib.update_traces(
+                texttemplate='%{y:.1f}',
+                textposition='outside'
+            )
+            st.plotly_chart(fig_contrib, use_container_width=True)
