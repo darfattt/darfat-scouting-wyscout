@@ -511,7 +511,7 @@ def render_player_similarity_page(df_filtered):
     st.markdown("---")
 
     # Display reference player's composite attributes
-    #st.markdown("#### 🎯 Reference Player - Composite Attributes")
+    #st.markdown("#### 🎯 Reference Player - Attributes")
     with st.expander("⚙️ Reference Player Attributes", expanded=False):
         # Import and get stat columns - MOVED OUTSIDE if block to fix UnboundLocalError
         from utils.data_loader import calculate_composite_attributes
@@ -520,7 +520,7 @@ def render_player_similarity_page(df_filtered):
 
         # Add recalculate button
         recalc_button = st.button(
-            "🔄 Recalculate Composite Attributes",
+            "🔄 Recalculate Attributes",
             key="recalc_composite",
             help="Refresh composite attribute calculations"
         )
@@ -570,15 +570,11 @@ def render_player_similarity_page(df_filtered):
 
     # Initialize session state for weights
     if 'similarity_weights' not in st.session_state:
-        # Default weights - try auto-populate if composite attrs available
-        if 'ref_composite_attrs' in st.session_state:
-            st.session_state.similarity_weights = suggest_weights_from_profile(
-                st.session_state.ref_composite_attrs,
-                top_n=4
-            )
-        else:
-            # Fallback: default to first 10 individual stats
-            st.session_state.similarity_weights = {col: 0.1 for col in stat_columns[:10]}
+        # Default to ALL composite attributes with weight 1.0
+        st.session_state.similarity_weights = {
+            f"COMP_{attr}": 1.0 
+            for attr in COMPOSITE_ATTRIBUTES.keys()
+        }
 
     # Add auto-populate button UI
     st.markdown("💡 **Tip**: Auto-populate suggests weights based on player's strongest composite attributes")
@@ -594,32 +590,49 @@ def render_player_similarity_page(df_filtered):
         ):
             # Trigger weight recalculation
             if 'ref_composite_attrs' in st.session_state:
-                st.session_state.similarity_weights = suggest_weights_from_profile(
+                # Calculate new weights
+                new_weights = suggest_weights_from_profile(
                     st.session_state.ref_composite_attrs,
                     top_n=4
                 )
+                # Update session state
+                st.session_state.similarity_weights = new_weights
+                # Force UI re-render
+                st.experimental_rerun()
                 st.success("✅ Weights auto-populated from player's top composite attributes!")
             else:
                 st.warning("⚠️ Please recalculate composite attributes first")
+
+        # Add weight modification detection and reset functionality
+        default_weights = {f"COMP_{attr}": 0.2 for attr in COMPOSITE_ATTRIBUTES.keys()}
+        weights_modified = st.session_state.similarity_weights != default_weights
+
+        if weights_modified:
+            st.info("📝 Weights have been modified from default values")
+            reset_col1, reset_col2 = st.columns([3, 1])
+            with reset_col1:
+                if st.button("🔄 Reset to Default", key="reset_weights_btn"):
+                    st.session_state.similarity_weights = default_weights.copy()
+                    st.experimental_rerun()
 
     # Weight adjustment UI
     with st.expander("⚙️ Configure Metric Weights", expanded=True):
         adjusted_weights = {}
 
-        # Create tabs for Individual Stats vs Composite Attributes
-        metric_tab1, metric_tab2 = st.tabs(["🎯 Composite Attributes","📊 Individual Stats"])
+        # Create tabs for Individual Stats vs Attributes
+        metric_tab1, metric_tab2 = st.tabs(["🎯 Attributes","📊 Individual Stats"])
 
         with metric_tab1:
-            st.markdown("#### Composite Attributes")
+            st.markdown("#### Attributes")
 
             # Display with friendly names
             composite_options_display = [composite_display_names[col] for col in composite_columns]
             composite_options_mapping = {display: col for display, col in zip(composite_options_display, composite_columns)}
 
-            # Filter defaults to only include composite attrs that exist in options, convert to display names
-            composite_defaults = [composite_display_names[k] for k in st.session_state.similarity_weights.keys() if k in composite_columns] if 'similarity_weights' in st.session_state else []
+            # Show all composite attributes by default
+            composite_defaults = composite_options_display
             selected_composite_display = st.multiselect(
-                "Choose composite attributes:",
+                "Choose attributes",
                 options=composite_options_display,
                 default=composite_defaults,
                 help="Select composite attributes for similarity calculation",
@@ -632,7 +645,7 @@ def render_player_similarity_page(df_filtered):
             if selected_composite_metrics:
                 for comp_col in selected_composite_metrics:
                     display_name = composite_display_names[comp_col]
-                    default_weight = st.session_state.similarity_weights.get(comp_col, 0.2)
+                    default_weight = st.session_state.similarity_weights.get(comp_col, 1.0)
                     adjusted_weights[comp_col] = st.slider(
                         display_name,
                         min_value=0.0,
@@ -654,8 +667,8 @@ def render_player_similarity_page(df_filtered):
             )
         with metric_tab2:
             st.markdown("#### Individual Statistics")
-            # Filter defaults to only include individual stats that exist in options
-            individual_defaults = [k for k in st.session_state.similarity_weights.keys() if k in stat_columns][:5] if 'similarity_weights' in st.session_state else []
+            # Don't show individual stats by default
+            individual_defaults = []
             selected_individual_metrics = st.multiselect(
                 "Choose individual stats:",
                 options=stat_columns,
@@ -666,7 +679,7 @@ def render_player_similarity_page(df_filtered):
 
             if selected_individual_metrics:
                 for metric in selected_individual_metrics:
-                    default_weight = st.session_state.similarity_weights.get(metric, 0.1)
+                    default_weight = st.session_state.similarity_weights.get(metric, 1.0)
                     adjusted_weights[metric] = st.slider(
                         metric,
                         min_value=0.0,
@@ -789,7 +802,7 @@ def render_player_similarity_page(df_filtered):
 
         tab1, tab2, tab3, tab4 = st.tabs([
             "📋 Results Table",
-            "🎯 Composite Attributes Scatter",
+            "🎯 Attributes Scatter",
             "📊 Individual Stats Scatter",
             "🔍 Player Detail"
         ])
@@ -1016,7 +1029,7 @@ def display_similarity_scatter_plot_composite(results_df, full_df, reference_pla
     """Display scatter plot with composite attributes on axes"""
     import plotly.graph_objects as go
 
-    st.markdown("#### Composite Attributes Scatter Plot")
+    st.markdown("#### Attributes Scatter Plot")
 
     # Metric selection for X/Y axes - only composite attributes
     col1, col2 = st.columns(2)
@@ -1117,7 +1130,7 @@ def display_similarity_scatter_plot_composite(results_df, full_df, reference_pla
 
     # Update layout
     fig.update_layout(
-        title=f"{x_metric_display} vs {y_metric_display} - Composite Attributes Analysis",
+        title=f"{x_metric_display} vs {y_metric_display} - Attributes Analysis",
         xaxis_title=x_metric_display,
         yaxis_title=y_metric_display,
         height=600,

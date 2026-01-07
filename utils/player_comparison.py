@@ -281,7 +281,7 @@ def display_composite_attributes(
     import numpy as np
 
     st.markdown("---")
-    st.markdown("### 📊 Composite Attributes Analysis")
+    st.markdown("### 📊 Attributes Analysis")
     st.markdown("*Calculated from weighted combinations of key statistics*")
 
     # Get all attribute names from the first player
