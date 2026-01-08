@@ -338,3 +338,68 @@ class SimilarityScorer:
             }
 
         return contributions
+
+    def get_all_composite_contributions(
+        self,
+        reference_player_name: str,
+        similar_player_name: str,
+        composite_attributes: Dict
+    ) -> Dict[str, Dict]:
+        """
+        Get ALL composite attribute contributions (not filtered by weights)
+
+        Args:
+            reference_player_name: Reference player name
+            similar_player_name: Player to compare against
+            composite_attributes: COMPOSITE_ATTRIBUTES config from config/composite_attributes.py
+
+        Returns:
+            Dictionary with ALL composite-by-composite comparison
+        """
+        ref_player = self.df[self.df['Player'] == reference_player_name]
+        sim_player = self.df[self.df['Player'] == similar_player_name]
+
+        if len(ref_player) == 0:
+            raise ValueError(f"Reference player '{reference_player_name}' not found")
+        if len(sim_player) == 0:
+            raise ValueError(f"Similar player '{similar_player_name}' not found")
+
+        ref_player = ref_player.iloc[0]
+        sim_player = sim_player.iloc[0]
+
+        contributions = {}
+
+        for attr_key, attr_config in composite_attributes.items():
+            comp_col = f"COMP_{attr_key}"
+
+            if comp_col not in self.df.columns:
+                continue
+
+            ref_val = ref_player[comp_col]
+            sim_val = sim_player[comp_col]
+
+            ref_val = 50.0 if pd.isna(ref_val) else float(ref_val)
+            sim_val = 50.0 if pd.isna(sim_val) else float(sim_val)
+
+            diff = abs(ref_val - sim_val)
+            max_diff = self.df[comp_col].max() - self.df[comp_col].min()
+
+            if max_diff > 0:
+                metric_similarity = 1 - (diff / max_diff)
+            else:
+                metric_similarity = 1.0
+
+            metric_similarity = max(0, min(1, metric_similarity))
+
+            display_name = attr_config.get('display_name', attr_key)
+            icon = attr_config.get('icon', '')
+
+            contributions[comp_col] = {
+                'display_name': f"{icon} {display_name}".strip(),
+                'reference_value': ref_val,
+                'similar_value': sim_val,
+                'difference': diff,
+                'metric_similarity': float(metric_similarity * 100)
+            }
+
+        return contributions

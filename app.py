@@ -434,50 +434,72 @@ def render_player_finder_page(df_filtered):
             show_player_finder(df_filtered, {selected_preset: temp_preset_config}, selected_preset)
 
 
-def suggest_weights_from_profile(ref_composite_attrs: dict, top_n: int = 4) -> dict:
+def get_top_stats_with_weights(df_filtered: pd.DataFrame, selected_player: str, player_position: str, top_n: int = 10) -> dict:
     """
-    Suggest metric weights based on player's strongest composite attributes
+    Get top individual stats for a position with weights based on player's actual stat values
 
     Args:
-        ref_composite_attrs: Dict of {attr_key: {score, display_name, ...}}
-        top_n: Number of top attributes to weight (default: 4)
+        df_filtered: Filtered player dataframe
+        selected_player: Name of selected player
+        player_position: Player position (e.g., "CB", "AM")
+        top_n: Number of top stats to return (default: 10)
 
     Returns:
-        Dict of {metric_name: weight} with COMP_* columns weighted
-
-    Example:
-        If player has high scores in Tackling (85), Passing (80),
-        Anticipation (75), Composure (70):
-        Returns: {
-            'COMP_Tackling': 0.25,
-            'COMP_Passing': 0.25,
-            'COMP_Anticipation': 0.25,
-            'COMP_Composure': 0.25
-        }
+        Dict of {stat_name: weight} for top stats
     """
-    suggested_weights = {}
+    from config.position_rankings import POSITION_RANKINGS
+    from config.position_groups import POSITION_GROUPS
+    from utils.data_loader import get_player_stats
+    from config.stat_categories import STAT_CATEGORIES
+    from config.composite_attributes import COMPOSITE_ATTRIBUTES
 
-    # Sort composite attributes by score (highest first)
-    sorted_attrs = sorted(
-        ref_composite_attrs.items(),
-        key=lambda x: x[1]['score'],
-        reverse=True
-    )
+    stat_columns = get_all_stat_columns(STAT_CATEGORIES)
 
-    # Get top N attributes
-    top_attrs = sorted_attrs[:top_n]
-    print(f"Top Attrs : {top_attrs}")
+    position_group = None
+    for pos_group, pos_list in POSITION_GROUPS.items():
+        if pos_list and player_position in pos_list:
+            for rank_group in POSITION_RANKINGS.keys():
+                if rank_group in pos_group or pos_group in rank_group:
+                    position_group = rank_group
+                    break
+        if position_group:
+            break
 
-    # Assign equal weights to top composite attributes
-    # Weight per attribute = 1.0 / top_n (will be normalized in similarity calculation)
-    weight_per_attr = 0.25  # For top_n=4, each gets 25%
+    if not position_group:
+        position_group = list(POSITION_RANKINGS.keys())[0]
 
-    for attr_key, attr_data in top_attrs:
-        # Convert attr_key (e.g., "Tackling") to column name (e.g., "COMP_Tackling")
-        comp_col = f"COMP_{attr_key}"
-        suggested_weights[comp_col] = weight_per_attr
+    key_composites = POSITION_RANKINGS[position_group]["key_attributes"]
 
-    return suggested_weights
+    all_candidate_stats = set()
+    for comp_attr in key_composites:
+        if comp_attr not in COMPOSITE_ATTRIBUTES:
+            continue
+        components = COMPOSITE_ATTRIBUTES[comp_attr].get("components", [])
+        for comp in components:
+            stat_name = comp["stat"]
+            if stat_name in stat_columns:
+                all_candidate_stats.add(stat_name)
+
+    player_stats = get_player_stats(df_filtered, selected_player, list(all_candidate_stats))
+
+    stat_percentiles = {}
+    for stat_name in all_candidate_stats:
+        if stat_name in player_stats:
+            stat_percentiles[stat_name] = player_stats[stat_name].get('percentile', 50.0)
+        else:
+            stat_percentiles[stat_name] = 50.0
+
+    sorted_stats = sorted(stat_percentiles.items(), key=lambda x: x[1], reverse=True)
+    top_stats = sorted_stats[:top_n]
+
+    total_percentile = sum(stat[1] for stat in top_stats)
+
+    if total_percentile > 0:
+        weights = {stat[0]: stat[1] / total_percentile for stat in top_stats}
+    else:
+        weights = {stat[0]: 1.0 / len(top_stats) for stat in top_stats}
+
+    return weights
 
 
 def render_player_similarity_page(df_filtered):
@@ -567,197 +589,124 @@ def render_player_similarity_page(df_filtered):
     # ========== METRIC WEIGHTS SECTION ==========
     st.markdown("### ⚖️ Adjust Metric Weights")
 
-    # Get composite attribute columns with position-specific filtering
     from config.composite_attributes import COMPOSITE_ATTRIBUTES
     from config.position_rankings import POSITION_RANKINGS
-    
-    # Determine position group for filtering composites
+
+    player_position = ref_player_info['Position']
+
     position_group = None
-    player_position = None
-    
-    # Get player position from filtered data
-    if 'ref_composite_attrs' in st.session_state and st.session_state.ref_composite_attrs:
-        # Get the reference player's position to determine key attributes
-        ref_player_row = df_filtered[df_filtered['Player'] == selected_player]
-        if len(ref_player_row) > 0:
-            player_position = ref_player_row.iloc[0]['Position']
-        
-        # Determine which position group this belongs to
-        for pos_group, pos_config in POSITION_RANKINGS.items():
-            if player_position and any(pos in player_position for pos in POSITION_GROUPS.get(pos_group, [])):
-                position_group = pos_group
-                break
-    
-    # All available composite attributes (options)
-    all_composites = list(COMPOSITE_ATTRIBUTES.keys())
+    for pos_group, pos_list in POSITION_GROUPS.items():
+        if pos_list and player_position in pos_list:
+            for rank_group in POSITION_RANKINGS.keys():
+                if rank_group in pos_group or pos_group in rank_group:
+                    position_group = rank_group
+                    break
+        if position_group:
+            break
 
-    # Default selection based on position
-    if position_group and position_group in POSITION_RANKINGS:
-        default_composites = POSITION_RANKINGS[position_group]["key_attributes"]
-    else:
-        default_composites = all_composites.copy()
+    if not position_group:
+        position_group = list(POSITION_RANKINGS.keys())[0]
 
-    # Safety: keep only valid composites
-    default_composites = [
-        c for c in default_composites if c in COMPOSITE_ATTRIBUTES
-    ]
+    relevant_composites = POSITION_RANKINGS[position_group]["key_attributes"]
+    composite_columns = [f"COMP_{attr}" for attr in COMPOSITE_ATTRIBUTES.keys()]
 
-    # UI: user can freely add/remove
-    selected_composites = st.multiselect(
-        "Select attributes to compare",
-        options=all_composites,
-        default=default_composites
-    )
-
-    # Final composites used in calculation
-    relevant_composites = {
-        k: COMPOSITE_ATTRIBUTES[k]
-        for k in selected_composites
-    }
-
-    composite_attr_names = list(relevant_composites.keys())
-    composite_columns = [f"COMP_{attr}" for attr in composite_attr_names]
-
-    # Create display names mapping for composite attributes
     composite_display_names = {
         f"COMP_{key}": f"{config.get('icon', '')} {config['display_name']}"
         for key, config in COMPOSITE_ATTRIBUTES.items()
     }
 
-    # Initialize session state for weights
+    if 'selected_player' not in st.session_state or st.session_state.selected_player != selected_player:
+        top_stats_weights = get_top_stats_with_weights(df_filtered, selected_player, player_position, top_n=10)
+        st.session_state.similarity_weights = top_stats_weights
+        st.session_state.selected_player = selected_player
+
     if 'similarity_weights' not in st.session_state:
-        # Default to ALL composite attributes with weight 0.2
-        st.session_state.similarity_weights = {
-            f"COMP_{attr}": 0.2 
-            for attr in COMPOSITE_ATTRIBUTES.keys()
-        }
+        st.session_state.similarity_weights = get_top_stats_with_weights(
+            df_filtered, selected_player, player_position, top_n=10
+        )
 
-    # Add auto-populate button UI
-    st.markdown("💡 **Tip**: Auto-populate suggests weights based on player's strongest composite attributes")
-
-    col_auto1, col_auto2 = st.columns([4, 1])
-    with col_auto1:
-        if st.button(
-            "🎯 Auto-Populate",
-            key="auto_weights_btn",
-            help="Suggest weights from player's top 4 composite attributes"
-        ):
-            # Get composite attributes fresh from dataframe
-            ref_composite_attrs = get_player_composite_attrs(df_filtered, selected_player, COMPOSITE_ATTRIBUTES)
-
-            if ref_composite_attrs:
-                # Calculate new weights
-                new_weights = suggest_weights_from_profile(ref_composite_attrs, top_n=4)
-                print(f"New {new_weights}")
-                # Update session state
-                st.session_state.similarity_weights = new_weights
-                st.success("✅ Weights auto-populated from player's top composite attributes!")
-            else:
-                st.warning("⚠️ Player not found in filtered data")
-
-        # Add weight modification detection and reset functionality
-        default_weights = {f"COMP_{attr}": 0.2 for attr in COMPOSITE_ATTRIBUTES.keys()}
-        weights_modified = st.session_state.similarity_weights != default_weights
-
-        if weights_modified:
-            st.info("📝 Weights have been modified from default values")
-            reset_col1, reset_col2 = st.columns([3, 1])
-            with reset_col1:
-                if st.button("🔄 Reset to Default", key="reset_weights_btn"):
-                    st.session_state.similarity_weights = default_weights.copy()
-                    st.experimental_rerun()
-    
-    # Weight adjustment UI
     with st.expander("⚙️ Configure Metric Weights", expanded=True):
         adjusted_weights = {}
 
-        # Create tabs for Individual Stats vs Attributes
-        metric_tab1, metric_tab2 = st.tabs(["🎯 Attributes","📊 Individual Stats"])
+        metric_tab1, metric_tab2 = st.tabs(["📊 Individual Stats", "🎯 Attributes"])
 
         with metric_tab1:
-            st.markdown("#### Attributes")
+            st.markdown("#### Individual Statistics")
+            st.caption("Weights based on your selected player's stat percentiles. Higher stats = more influence on similarity.")
 
-            # Display with friendly names
-            composite_options_display = [composite_display_names[col] for col in composite_columns]
-            composite_options_mapping = {display: col for display, col in zip(composite_options_display, composite_columns)}
+            current_individual_weights = {
+                k: v for k, v in st.session_state.similarity_weights.items()
+                if k in stat_columns
+            }
 
-            # Show all composite attributes by default
-            composite_defaults = composite_options_display
-            selected_composite_display = st.multiselect(
-                "Choose attributes",
-                options=composite_options_display,
-                default=composite_defaults,
-                help="Select composite attributes for similarity calculation",
-                key="similarity_selected_composite"
-            )
-
-            # Convert back to column names
-            selected_composite_metrics = [composite_options_mapping[disp] for disp in selected_composite_display]
-
-            if selected_composite_metrics:
-                for comp_col in selected_composite_metrics:
-                    display_name = composite_display_names[comp_col]
-                    default_weight = st.session_state.similarity_weights.get(comp_col, 0.0)
-                    adjusted_weights[comp_col] = st.slider(
-                        display_name,
+            if current_individual_weights:
+                for metric, default_weight in current_individual_weights.items():
+                    weight = st.slider(
+                        metric,
                         min_value=0.0,
                         max_value=1.0,
                         value=default_weight,
                         step=0.05,
-                        key=f"sim_weight_comp_{comp_col}"
+                        key=f"sim_weight_ind_{metric}",
+                        help=f"Current weight: {default_weight:.3f}"
                     )
-            # Age range filter
+                    adjusted_weights[metric] = weight
+
+            available_stats = [s for s in stat_columns if s not in current_individual_weights]
+            if available_stats:
+                st.markdown("---")
+                st.markdown("**Add More Stats:**")
+                additional_stats = st.multiselect(
+                    "Select additional individual stats to include:",
+                    options=available_stats,
+                    default=[],
+                    help="Add more stats to the similarity calculation"
+                )
+
+                for metric in additional_stats:
+                    weight = st.slider(
+                        metric,
+                        min_value=0.0,
+                        max_value=1.0,
+                        value=0.1,
+                        step=0.05,
+                        key=f"sim_weight_ind_add_{metric}"
+                    )
+                    adjusted_weights[metric] = weight
+
             min_age = int(df_filtered['Age'].min())
             max_age = int(df_filtered['Age'].max())
             age_range = st.slider(
                 "Age Range:",
                 min_value=min_age,
                 max_value=max_age,
-                value=(min_age, max_age),
+                value=(22, 35),
                 help="Filter by player age range",
                 key="similarity_age_range"
             )
+
         with metric_tab2:
-            st.markdown("#### Individual Statistics")
-            # Don't show individual stats by default
-            individual_defaults = []
-            selected_individual_metrics = st.multiselect(
-                "Choose individual stats:",
-                options=stat_columns,
-                default=individual_defaults,
-                help="Select individual stats for similarity calculation",
-                key="similarity_selected_individual"
-            )
+            st.markdown("#### Attributes")
+            st.caption("💡 Note: These composite attributes are displayed in results but NOT used for similarity calculation.")
+            st.caption("Similarity is based on Individual Statistics only.")
 
-            if selected_individual_metrics:
-                for metric in selected_individual_metrics:
-                    default_weight = st.session_state.similarity_weights.get(metric, 1.0)
-                    adjusted_weights[metric] = st.slider(
-                        metric,
-                        min_value=0.0,
-                        max_value=1.0,
-                        value=default_weight,
-                        step=0.05,
-                        key=f"sim_weight_ind_{metric}"
-                    )
-            
-            # Age range filter
-            # min_age = int(df_filtered['Age'].min())
-            # max_age = int(df_filtered['Age'].max())
-            # age_range = st.slider(
-            #     "Age Range:",
-            #     min_value=min_age,
-            #     max_value=max_age,
-            #     value=(min_age, max_age),
-            #     help="Filter by player age range",
-            #     key="similarity_age_range"
-            # )
-            
+            st.markdown("##### Available Composite Attributes")
 
-        # Save weights to session state
+            # for attr_key, attr_config in COMPOSITE_ATTRIBUTES.items():
+            #     comp_col = f"COMP_{attr_key}"
+            #     display_name = f"{attr_config.get('icon', '')} {attr_config['display_name']}"
+            #     description = attr_config.get('description', '')
+
+            #     #with st.expander(f"{display_name}", expanded=False):
+            #     st.write(f"**Description:** {description}")
+            #     st.write("**Component Stats:**")
+            #     for component in attr_config.get('components', []):
+            #         stat_name = component['stat']
+            #         weight = component['weight']
+            #         st.write(f"- {stat_name} (weight: {weight:.2f})")
+
         st.session_state.similarity_weights = adjusted_weights
 
-        # Weight summary
         if adjusted_weights:
             total_weight = sum(abs(w) for w in adjusted_weights.values())
             st.info(f"**Total Weight**: {total_weight:.2f} (will be normalized to 1.0)")
@@ -805,20 +754,28 @@ def render_player_similarity_page(df_filtered):
     if st.button("🔄 Find Similar Players", type="primary", key="calculate_similarity"):
         if not adjusted_weights or sum(adjusted_weights.values()) == 0:
             st.error("❌ Please select at least one metric with weight > 0")
-            st.session_state.similarity_results = None  # Clear results
+            st.session_state.similarity_results = None
         else:
             with st.spinner("Calculating player similarity..."):
-                # Initialize scorer with composite columns
+                individual_weights = {
+                    k: v for k, v in adjusted_weights.items()
+                    if k in stat_columns and k in df_filtered.columns
+                }
+
+                if not individual_weights:
+                    st.error("❌ Please select at least one individual statistic with weight > 0")
+                    st.session_state.similarity_results = None
+                    return
+
                 scorer = SimilarityScorer(df_filtered, stat_columns, composite_columns)
 
                 try:
-                    # Calculate similarity
                     results_df = scorer.calculate_similarity(
                         reference_player_name=selected_player,
-                        weights=adjusted_weights,
+                        weights=individual_weights,
                         min_minutes=min_minutes,
                         age_range=age_range,
-                        same_position_only=False,  # HARDCODED: Cross-position comparisons enabled by design
+                        same_position_only=False,
                         top_n=30
                     )
 
@@ -826,16 +783,29 @@ def render_player_similarity_page(df_filtered):
                         st.warning("⚠️ No similar players found with the current filters. Try adjusting your filters.")
                         st.session_state.similarity_results = None
                     else:
-                        # STORE in session state - all data needed for display
+                        result_players = results_df['Player'].tolist()
+                        result_players.append(selected_player)
+
+                        composite_data = df_filtered[df_filtered['Player'].isin(result_players)][
+                            ['Player'] + composite_columns
+                        ]
+
+                        results_df = results_df.merge(
+                            composite_data,
+                            on='Player',
+                            how='left'
+                        )
+
                         st.session_state.similarity_results = {
                             'results_df': results_df,
                             'scorer': scorer,
                             'reference_player': selected_player,
-                            'weights': adjusted_weights,
+                            'weights': individual_weights,
                             'composite_display_names': composite_display_names,
                             'df_filtered': df_filtered,
                             'stat_columns': stat_columns,
-                            'composite_columns': composite_columns
+                            'composite_columns': composite_columns,
+                            'relevant_composites': [f"COMP_{attr}" for attr in relevant_composites]
                         }
 
                 except Exception as e:
@@ -865,7 +835,8 @@ def render_player_similarity_page(df_filtered):
                 results['results_df'],
                 results['reference_player'],
                 results['weights'],
-                results['composite_display_names']
+                results['composite_display_names'],
+                results['relevant_composites']
             )
 
         with tab2:
@@ -899,16 +870,29 @@ def render_player_similarity_page(df_filtered):
             )
 
 
-def display_similarity_results_table(results_df, reference_player, weights, composite_display_names):
-    """Display top 30 similar players table with composite attributes"""
+def display_similarity_results_table(results_df, reference_player, weights, composite_display_names, relevant_composites):
+    """Display top 30 similar players table with all composite attributes"""
     st.markdown("#### Top 30 Most Similar Players")
 
-    # Format scores
     display_df = results_df.copy()
     display_df['Similarity_Score'] = display_df['Similarity_Score'].round(3)
     display_df['Similarity_Percentile'] = display_df['Similarity_Percentile'].round(1)
 
-    # Rename composite columns for display
+    display_cols = ['Rank', 'Player', 'Team', 'Position', 'Age',
+                   'Similarity_Score', 'Similarity_Percentile']
+
+    for metric in weights.keys():
+        if metric in display_df.columns and metric not in display_cols:
+            display_cols.append(metric)
+
+    all_comp_cols = [col for col in display_df.columns if col.startswith('COMP_')]
+    for comp_col in all_comp_cols:
+        if comp_col not in display_cols:
+            display_cols.append(comp_col)
+
+    display_cols = [col for col in display_cols if col in display_df.columns]
+    display_df = display_df[display_cols]
+
     rename_dict = {}
     for col in display_df.columns:
         if col.startswith('COMP_'):
@@ -933,7 +917,6 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
         )
     }
 
-    # Add metric columns
     for metric in weights.keys():
         if metric in display_df.columns:
             column_config[metric] = st.column_config.NumberColumn(
@@ -942,12 +925,22 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
                 width="small"
             )
 
-    # Display table
+    all_comp_cols = [col for col in display_df.columns if col.startswith('COMP_')]
+    for comp_col in all_comp_cols:
+        if comp_col in display_df.columns:
+            display_name = composite_display_names.get(comp_col, comp_col)
+            column_config[display_name] = st.column_config.NumberColumn(
+                display_name,
+                format="%.1f",
+                width="medium"
+            )
+
     st.dataframe(
         display_df,
         column_config=column_config,
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        height=600
     )
 
     # Summary stats
@@ -962,10 +955,9 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
     with col4:
         st.metric("Teams Represented", display_df['Team'].nunique())
 
-    # Weights used
-    st.markdown("##### ⚖️ Weights Used")
+    st.markdown("##### ⚖️ Individual Statistics Weights Used")
     weights_df = pd.DataFrame([
-        {'Metric': metric, 'Weight': f"{weight:.2f}"}
+        {'Metric': metric, 'Weight': f"{weight:.3f}"}
         for metric, weight in weights.items()
     ])
     st.dataframe(weights_df, use_container_width=True, hide_index=True)
@@ -1224,84 +1216,15 @@ def display_similarity_player_detail(results_df, scorer, reference_player, weigh
         st.info("Select a player to view detailed comparison")
         return
 
-    # Get BOTH composite AND individual contributions
-    composite_contributions = scorer.get_composite_contributions(
-        reference_player,
-        selected_similar_player,
-        weights,
-        COMPOSITE_ATTRIBUTES
-    )
-
     individual_contributions = scorer.get_metric_contributions(
         reference_player,
         selected_similar_player,
         weights
     )
 
-    # Display comparison header
     st.markdown(f"##### Comparing: **{reference_player}** vs **{selected_similar_player}**")
 
-    # ========== NEW SECTION: Composite Attribute Contributions ==========
-    if composite_contributions:
-        st.markdown("---")
-        st.markdown("#### 🎯 Composite Attribute Contributions")
-        st.caption("Higher-level tactical attributes based on weighted statistical combinations")
-
-        # Create comparison table
-        comp_data = []
-        for comp_col, data in sorted(
-            composite_contributions.items(),
-            key=lambda x: x[1]['weighted_contribution'],
-            reverse=True
-        ):
-            comp_data.append({
-                'Attribute': data['display_name'],
-                f"{reference_player}": f"{data['reference_value']:.1f}",
-                f"{selected_similar_player}": f"{data['similar_value']:.1f}",
-                'Difference': f"{data['difference']:.1f}",
-                'Similarity %': f"{data['metric_similarity']:.1f}%",
-                'Weight': f"{data['weight']:.2f}",
-                'Contribution': f"{data['weighted_contribution']:.2f}"
-            })
-
-        comp_df = pd.DataFrame(comp_data)
-
-        # Display table
-        st.dataframe(
-            comp_df,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        # Visualization: Bar chart of weighted contributions
-        contribution_values = [float(row['Contribution']) for _, row in comp_df.iterrows()]
-        similarity_values = [float(row['Similarity %'].replace('%', '')) for _, row in comp_df.iterrows()]
-
-        fig_comp = px.bar(
-            comp_df,
-            x='Attribute',
-            y=contribution_values,
-            title="Composite Attribute Contributions to Overall Similarity",
-            color=similarity_values,
-            color_continuous_scale='RdYlGn',  # Red (low) to Green (high)
-            labels={
-                'y': 'Weighted Contribution',
-                'color': 'Similarity %'
-            }
-        )
-
-        # Apply consistent styling
-        fig_comp.update_layout(
-            height=400,
-            plot_bgcolor='#f5f3e8',
-            paper_bgcolor='#f5f3e8',
-            font=dict(size=12),
-            xaxis_tickangle=-45
-        )
-
-        st.plotly_chart(fig_comp, use_container_width=True)
-
-    # ========== EXISTING SECTION: Individual Metric Contributions ==========
+    # ========== Individual Metric Contributions ==========
     if individual_contributions:
         st.markdown("---")
         st.markdown("#### 📊 Individual Metric Contributions")
@@ -1348,10 +1271,34 @@ def display_similarity_player_detail(results_df, scorer, reference_player, weigh
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # Edge case: No contributions to show
-    if not composite_contributions and not individual_contributions:
-        st.warning("⚠️ No metrics selected for comparison. Please select at least one metric or composite attribute.")
+    # ========== ALL COMPOSITE ATTRIBUTES (Display Only) ==========
+    st.markdown("---")
+    st.markdown("#### 🎯 All Composite Attribute Contributions")
+    st.caption("Composite attributes for comparison (not used in similarity calculation)")
 
+    all_composite_contributions = scorer.get_all_composite_contributions(
+        reference_player,
+        selected_similar_player,
+        COMPOSITE_ATTRIBUTES
+    )
+
+    if all_composite_contributions:
+        comp_data = []
+        for comp_col, data in sorted(
+            all_composite_contributions.items(),
+            key=lambda x: x[1]['metric_similarity'],
+            reverse=True
+        ):
+            comp_data.append({
+                'Attribute': data['display_name'],
+                f"{reference_player}": f"{data['reference_value']:.1f}",
+                f"{selected_similar_player}": f"{data['similar_value']:.1f}",
+                'Difference': f"{data['difference']:.1f}",
+                'Similarity %': f"{data['metric_similarity']:.1f}%"
+            })
+
+        comp_df = pd.DataFrame(comp_data)
+        st.dataframe(comp_df, use_container_width=True, hide_index=True)
 
 def main():
     # Title and description
