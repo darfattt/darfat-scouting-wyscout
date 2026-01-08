@@ -9,7 +9,7 @@ from config.composite_attributes import COMPOSITE_ATTRIBUTES
 from config.defender_presets import DEFENDER_PRESETS
 from config.forward_presets import FORWARD_PRESETS
 from config.position_groups import POSITION_GROUPS, get_position_group_options
-from utils.data_loader import prepare_data_global, get_player_info, get_player_stats, get_all_stat_columns, calculate_composite_attributes, get_distinct_values, filter_players
+from utils.data_loader import prepare_data_global, get_player_info, get_player_stats, get_all_stat_columns, calculate_composite_attributes, get_player_composite_attrs, get_distinct_values, filter_players
 from utils.player_comparison import display_player_comparison, create_stats_table, display_composite_attributes, display_position_based_rankings
 from utils.player_finder import show_player_finder
 from utils.player_similarity import SimilarityScorer
@@ -526,14 +526,6 @@ def render_player_similarity_page(df_filtered):
         st.info("☝️ Please select a reference player to begin similarity analysis.")
         return
 
-    # Track player selection changes and clear old composite attrs
-    if 'similarity_selected_player' not in st.session_state or \
-       st.session_state.similarity_selected_player != selected_player:
-        st.session_state.similarity_selected_player = selected_player
-        # Clear old composite attrs to force fresh calculation
-        if 'ref_composite_attrs' in st.session_state:
-            del st.session_state['ref_composite_attrs']
-
     # Show reference player info
     ref_player_info = df_filtered[df_filtered['Player'] == selected_player].iloc[0]
     col1, col2, col3, col4 = st.columns(4)
@@ -548,47 +540,27 @@ def render_player_similarity_page(df_filtered):
 
     st.markdown("---")
 
-    # Display reference player's composite attributes
-    #st.markdown("#### 🎯 Reference Player - Attributes")
+    # Display reference player's composite attributes (pre-calculated in dataframe)
+    from utils.data_loader import get_player_composite_attrs
+    from config.composite_attributes import COMPOSITE_ATTRIBUTES
+
+    # Get stat columns for individual metrics
+    stat_columns = get_all_stat_columns(STAT_CATEGORIES)
+
     with st.expander("⚙️ Reference Player Attributes", expanded=False):
-        # Import and get stat columns - MOVED OUTSIDE if block to fix UnboundLocalError
-        from utils.data_loader import calculate_composite_attributes
-        from config.composite_attributes import COMPOSITE_ATTRIBUTES
-        stat_columns = get_all_stat_columns(STAT_CATEGORIES)
+        # Get composite attributes directly from dataframe
+        ref_composite_attrs = get_player_composite_attrs(df_filtered, selected_player, COMPOSITE_ATTRIBUTES)
 
-        # Add recalculate button
-        recalc_button = st.button(
-            "🔄 Recalculate Attributes",
-            key="recalc_composite",
-            help="Refresh composite attribute calculations"
-        )
-
-        # Calculate on button click OR first time (when not in session state)
-        if recalc_button or 'ref_composite_attrs' not in st.session_state:
-            # Calculate composite attributes for reference player
-            ref_player_stats = {}
-            for col in stat_columns:
-                percentile_col = f"{col}_percentile"
-                if percentile_col in df_filtered.columns:
-                    ref_player_row = df_filtered[df_filtered['Player'] == selected_player]
-                    if len(ref_player_row) > 0:
-                        ref_player_stats[percentile_col] = ref_player_row.iloc[0][percentile_col]
-
-            # Store in session state instead of local variable
-            st.session_state.ref_composite_attrs = calculate_composite_attributes(
-                ref_player_stats, COMPOSITE_ATTRIBUTES
-            )
-
-        # Display from session state
-        if 'ref_composite_attrs' in st.session_state:
+        # Display attributes
+        if ref_composite_attrs:
             comp_cols = st.columns(4)
-            for idx, (attr_key, attr_data) in enumerate(st.session_state.ref_composite_attrs.items()):
+            for idx, (attr_key, attr_data) in enumerate(ref_composite_attrs.items()):
                 with comp_cols[idx % 4]:
                     st.metric(
                         label=f"{attr_data['icon']} {attr_data['display_name']}",
                         value=f"{attr_data['score']:.1f}",
                         help=attr_data['description']
-                )
+                    )
 
     st.markdown("---")
 
@@ -670,21 +642,18 @@ def render_player_similarity_page(df_filtered):
             key="auto_weights_btn",
             help="Suggest weights from player's top 4 composite attributes"
         ):
-            # Trigger weight recalculation
-            if 'ref_composite_attrs' in st.session_state:
+            # Get composite attributes fresh from dataframe
+            ref_composite_attrs = get_player_composite_attrs(df_filtered, selected_player, COMPOSITE_ATTRIBUTES)
+
+            if ref_composite_attrs:
                 # Calculate new weights
-                new_weights = suggest_weights_from_profile(
-                    st.session_state.ref_composite_attrs,
-                    top_n=4
-                )
+                new_weights = suggest_weights_from_profile(ref_composite_attrs, top_n=4)
                 print(f"New {new_weights}")
                 # Update session state
                 st.session_state.similarity_weights = new_weights
-                # Force UI re-render
-                st.experimental_rerun()
                 st.success("✅ Weights auto-populated from player's top composite attributes!")
             else:
-                st.warning("⚠️ Please recalculate composite attributes first")
+                st.warning("⚠️ Player not found in filtered data")
 
         # Add weight modification detection and reset functionality
         default_weights = {f"COMP_{attr}": 0.2 for attr in COMPOSITE_ATTRIBUTES.keys()}

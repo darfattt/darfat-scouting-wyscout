@@ -419,3 +419,50 @@ def calculate_composite_attributes_batch(df: pd.DataFrame, stat_columns: List[st
         df_copy[f"COMP_{attr_key}"] = scores
 
     return df_copy
+
+
+def get_player_composite_attrs(df: pd.DataFrame, player_name: str, composite_attributes: Dict) -> Dict:
+    """
+    Extract composite attributes for a specific player from pre-calculated dataframe
+
+    Args:
+        df: DataFrame with COMP_* columns already calculated
+        player_name: Name of the player
+        composite_attributes: COMPOSITE_ATTRIBUTES config dictionary
+
+    Returns:
+        Dictionary with same structure as calculate_composite_attributes()
+        Example: {'Tackling': {'score': 85.2, 'display_name': 'Tackling', 'icon': '🛡️', 'description': '...'}}
+
+    Raises:
+        ValueError: If player not found in dataframe
+    """
+    # Get player row
+    player_row = df[df['Player'] == player_name]
+
+    if len(player_row) == 0:
+        raise ValueError(f"Player '{player_name}' not found in dataframe")
+
+    player_row = player_row.iloc[0]
+
+    # Extract all composite attributes
+    composite_attrs = {}
+
+    for attr_key, attr_config in composite_attributes.items():
+        comp_col = f"COMP_{attr_key}"
+
+        if comp_col in df.columns:
+            score = player_row[comp_col]
+
+            # Handle NaN values
+            if pd.isna(score):
+                score = 50.0
+
+            composite_attrs[attr_key] = {
+                'score': score,
+                'display_name': attr_config['display_name'],
+                'icon': attr_config.get('icon', ''),
+                'description': attr_config.get('description', '')
+            }
+
+    return composite_attrs
