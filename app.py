@@ -493,6 +493,7 @@ def get_top_stats_with_weights(df_filtered: pd.DataFrame, selected_player: str, 
 
     sorted_stats = sorted(stat_percentiles.items(), key=lambda x: x[1], reverse=True)
     top_stats = sorted_stats[:top_n]
+    print(f"top_stats {top_stats}")
 
     total_percentile = sum(stat[1] for stat in top_stats)
     print(f"total percentile {total_percentile}")
@@ -527,19 +528,19 @@ def render_player_similarity_page(df_filtered):
     
 
     with col1:
-        # default_player = ''
+        default_player = 'F. Barba'
         player_names = sorted(df_filtered['Player'].tolist())
 
-        # default_index = (
-        #     player_names.index(default_player)
-        #     if default_player in player_names
-        #     else 0
-        # )
+        default_index = (
+            player_names.index(default_player)
+            if default_player in player_names
+            else 0
+        )
         # Player selection dropdown
         selected_player = st.selectbox(
             "Choose a reference player:",
             options=player_names,
-            index=0,
+            index=default_index,
             help="Find players similar to this reference player",
             key="similarity_reference_player"
         )
@@ -662,7 +663,8 @@ def render_player_similarity_page(df_filtered):
                 'xG against per 90',
                 'Prevented goals per 90',
                 'Back passes received as GK per 90',
-                'Exits per 90'
+                'Exits per 90',
+                'Conceded goals per 90'
             }
             
             available_stats = [

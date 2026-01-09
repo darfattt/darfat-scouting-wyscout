@@ -1,17 +1,17 @@
 """
-Position-based ranking configuration
-Defines which composite attributes are most relevant for each position type
+Position-based ranking configuration for defenders
+Defines which composite attributes are most relevant for each defender position type
 """
 
 POSITION_RANKINGS = {
     "CB": {
         "display_name": "Center Backs",
         "key_attributes": [
-            "Positioning",
+            "Security",
             "Duelling",
             "BoxDefending",
-            "DefensiveAction",
-            "Composure"
+            "Sweeping",
+            "ProgPass"
         ]
     },
 
@@ -21,62 +21,40 @@ POSITION_RANKINGS = {
             "Duelling",
             "BallCarrying",
             "ProgPass",
-            "Pressing",
-            "WidePlay"
+            "ProactiveDefending",
+            "Security"
         ]
     },
 
     "DM/CM": {
         "display_name": "Defensive / Central Midfielders",
         "key_attributes": [
-            "Positioning",
             "Security",
             "ProgPass",
-            "Pressing",
-            "DefensiveAction"
+            "ProactiveDefending",
+            "Duelling",
+            "Sweeping"
         ]
     },
 
-    "AM": {
-        "display_name": "Attacking Midfielders",
+    "Wide CB": {
+        "display_name": "Wide Centre Backs",
         "key_attributes": [
-            "Creativity",
-            "ChanceCreation",
             "BallCarrying",
-            "Dribbling",
-            "LinkUpPlay"
-        ]
-    },
-
-    "Winger": {
-        "display_name": "Wingers",
-        "key_attributes": [
-            "Dribbling",
-            "WidePlay",
             "Creativity",
-            "BallCarrying",
-            "LinkUpPlay"
+            "ProgPass",
+            "Duelling",
+            "ProactiveDefending"
         ]
     },
 
-    "CF": {
-        "display_name": "Centre Forwards",
+    "Back Three": {
+        "display_name": "Back Three Defenders",
         "key_attributes": [
-            "Scoring",
-            "AerialThreat",
-            "Composure",
-            "Pressing",
-            "Duelling"
-        ]
-    },
-
-    "ST": {
-        "display_name": "Strikers",
-        "key_attributes": [
-            "Scoring",
-            "AerialThreat",
-            "Composure",
-            "Pressing",
+            "Security",
+            "Sweeping",
+            "BoxDefending",
+            "Creativity",
             "BallCarrying"
         ]
     }

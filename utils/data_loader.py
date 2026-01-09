@@ -231,11 +231,19 @@ def get_player_stats(df: pd.DataFrame, player_name: str, stat_columns: List[str]
 
     stats = {}
     for col in stat_columns:
+        # percentile_col = f"{col}_percentile"
+        # stats[col] = {
+        #     'value': player_row[col],
+        #     'percentile': player_row.get(percentile_col, 0)
+        # }
         percentile_col = f"{col}_percentile"
-        stats[col] = {
-            'value': player_row[col],
-            'percentile': player_row.get(percentile_col, 0)
-        }
+        percentile = player_row.get(percentile_col)
+
+        if pd.notna(percentile):
+            stats[col] = {
+                'value': player_row[col],
+                'percentile': percentile
+            }
 
     return stats
 
