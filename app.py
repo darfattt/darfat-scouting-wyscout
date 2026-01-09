@@ -495,6 +495,7 @@ def get_top_stats_with_weights(df_filtered: pd.DataFrame, selected_player: str, 
     top_stats = sorted_stats[:top_n]
 
     total_percentile = sum(stat[1] for stat in top_stats)
+    print(f"total percentile {total_percentile}")
 
     if total_percentile > 0:
         weights = {stat[0]: stat[1] / total_percentile for stat in top_stats}
@@ -526,19 +527,19 @@ def render_player_similarity_page(df_filtered):
     
 
     with col1:
-        default_player = 'F. Barba'
+        # default_player = ''
         player_names = sorted(df_filtered['Player'].tolist())
 
-        default_index = (
-            player_names.index(default_player)
-            if default_player in player_names
-            else 0
-        )
+        # default_index = (
+        #     player_names.index(default_player)
+        #     if default_player in player_names
+        #     else 0
+        # )
         # Player selection dropdown
         selected_player = st.selectbox(
             "Choose a reference player:",
             options=player_names,
-            index=default_index,
+            index=0,
             help="Find players similar to this reference player",
             key="similarity_reference_player"
         )
@@ -654,7 +655,20 @@ def render_player_similarity_page(df_filtered):
                     )
                     adjusted_weights[metric] = weight
 
-            available_stats = [s for s in stat_columns if s not in current_individual_weights]
+            # GK-specific stats to exclude from similarity calculations
+            GK_STATS = {
+                'Save rate, %',
+                'Clean sheets',
+                'xG against per 90',
+                'Prevented goals per 90',
+                'Back passes received as GK per 90',
+                'Exits per 90'
+            }
+            
+            available_stats = [
+                s for s in stat_columns 
+                if s not in current_individual_weights and s not in GK_STATS
+            ]
             if available_stats:
                 st.markdown("---")
                 st.markdown("**Add More Stats:**")
@@ -665,16 +679,37 @@ def render_player_similarity_page(df_filtered):
                     help="Add more stats to the similarity calculation"
                 )
 
-                for metric in additional_stats:
-                    weight = st.slider(
-                        metric,
-                        min_value=0.0,
-                        max_value=1.0,
-                        value=0.1,
-                        step=0.05,
-                        key=f"sim_weight_ind_add_{metric}"
+                # Calculate player-based weights for additional stats
+                if additional_stats:
+                    player_stats_for_additional = get_player_stats(
+                        df_filtered, 
+                        selected_player, 
+                        additional_stats
                     )
-                    adjusted_weights[metric] = weight
+                    
+                    # Calculate default weights based on player percentiles
+                    additional_percentiles = []
+                    for stat in additional_stats:
+                        if stat in player_stats_for_additional:
+                            pct = player_stats_for_additional[stat].get('percentile', 50.0)
+                            additional_percentiles.append(pct)
+                        else:
+                            additional_percentiles.append(50.0)
+                    
+                    for idx, metric in enumerate(additional_stats):
+                        # Use player's percentile as default weight (0-100 scale to 0-1 scale)
+                        default_weight = additional_percentiles[idx] / 100.0
+                        
+                        weight = st.slider(
+                            metric,
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=default_weight,
+                            step=0.05,
+                            key=f"sim_weight_ind_add_{metric}",
+                            help=f"Default based on player's {additional_percentiles[idx]:.1f}th percentile for this stat"
+                        )
+                        adjusted_weights[metric] = weight
 
             min_age = int(df_filtered['Age'].min())
             max_age = int(df_filtered['Age'].max())
@@ -738,6 +773,7 @@ def render_player_similarity_page(df_filtered):
     with col2:
         # Contract expires filter
         contract_expires_before = None
+        exclude_null_contract = True
         if 'Contract expires' in df_filtered.columns:
             contract_date = st.date_input(
                 "Contract Expires Before:",
@@ -751,6 +787,14 @@ def render_player_similarity_page(df_filtered):
                 if isinstance(contract_date, tuple):
                     contract_date = contract_date[0]
                 contract_expires_before = contract_date.strftime('%Y-%m-%d')
+            
+            # Checkbox to exclude players with None/Null contract expires
+            exclude_null_contract = st.checkbox(
+                "Exclude players with no contract info",
+                value=True,
+                help="Hide players who have None/Null contract expiration dates",
+                key="similarity_exclude_null_contract"
+            )
 
     with col3:
         st.empty()  # Placeholder for future filters
@@ -784,6 +828,7 @@ def render_player_similarity_page(df_filtered):
                         min_minutes=int(min_minutes),
                         age_range=age_range,
                         contract_expires_before=contract_expires_before,
+                        exclude_null_contract=exclude_null_contract,
                         same_position_only=False,
                         top_n=30
                     )

@@ -40,6 +40,7 @@ class SimilarityScorer:
         league_weights: Dict[str, float] = None,
         same_position_only: bool = True,
         contract_expires_before: Optional[str] = None,
+        exclude_null_contract: bool = True,
         top_n: int = 30
     ) -> pd.DataFrame:
         """
@@ -87,10 +88,21 @@ class SimilarityScorer:
                 candidates['contract_date'] = candidates['Contract expires'].apply(
                     lambda x: datetime.strptime(str(x), '%Y-%m-%d') if pd.notna(x) and str(x) != 'nan' else None
                 )
-                candidates = candidates[
-                    (candidates['contract_date'].isna()) |
-                    (candidates['contract_date'] <= cutoff_date)
-                ]
+                
+                # Filter based on exclude_null_contract flag
+                if exclude_null_contract:
+                    # EXCLUDE null contracts, only keep valid dates <= cutoff
+                    candidates = candidates[
+                        (candidates['contract_date'].notna()) &
+                        (candidates['contract_date'] <= cutoff_date)
+                    ]
+                else:
+                    # INCLUDE null contracts (existing behavior)
+                    candidates = candidates[
+                        (candidates['contract_date'].isna()) |
+                        (candidates['contract_date'] <= cutoff_date)
+                    ]
+                
                 candidates = candidates.drop(columns=['contract_date'])
             except Exception:
                 pass  # Skip filter if date parsing fails
