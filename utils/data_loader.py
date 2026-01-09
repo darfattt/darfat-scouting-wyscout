@@ -7,6 +7,7 @@ from typing import Dict, List
 import glob
 import os
 import re
+from utils.column_mapping import apply_column_aliases, calculate_derived_metrics
 
 def load_player_data(csv_path: str) -> pd.DataFrame:
     """
@@ -30,7 +31,8 @@ def load_player_data(csv_path: str) -> pd.DataFrame:
 
 def load_all_league_data(data_folder: str) -> pd.DataFrame:
     """
-    Load all CSV files from data folder and combine into single DataFrame
+    Load all CSV files from data folder (flat structure, no subfolders)
+    Applies column mapping and derives missing metrics
 
     Args:
         data_folder: Path to the folder containing CSV files
@@ -41,14 +43,11 @@ def load_all_league_data(data_folder: str) -> pd.DataFrame:
     Raises:
         ValueError: If no valid CSV files found or all files failed to load
     """
-    subfolders = ["def", "mid", "fwd"]
-    # Use glob to find all CSV files
-    #csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
-    csv_files = []
-    for sub in subfolders:
-        csv_files.extend(
-            glob.glob(os.path.join(data_folder, sub, "*.csv"))
-        )
+    # Load from flat structure (no subfolders)
+    csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
+
+    # Filter out old_format.csv to avoid loading both formats
+    csv_files = [f for f in csv_files if 'old_format' not in f.lower()]
 
     # Handle empty folder
     if not csv_files:
@@ -63,8 +62,14 @@ def load_all_league_data(data_folder: str) -> pd.DataFrame:
             # Use existing load_player_data() function
             df = load_player_data(csv_path)
 
+            # Apply column aliases (Competition → League)
+            df = apply_column_aliases(df)
+
+            # Calculate derived metrics
+            df = calculate_derived_metrics(df)
+
             # Validate schema (required columns must exist)
-            required_cols = ['Player', 'Age', 'League', 'Position', 'Team', 'Birth country']
+            required_cols = ['Player', 'Age', 'Competition', 'Position', 'Team', 'Birth country']
             missing_cols = [col for col in required_cols if col not in df.columns]
 
             if missing_cols:
@@ -115,15 +120,14 @@ def get_distinct_values(df: pd.DataFrame) -> Dict:
     }
 
 
-def filter_players(df: pd.DataFrame, positions: List[str] = None, leagues: List[str] = None, contract_expired: bool = None) -> pd.DataFrame:
+def filter_players(df: pd.DataFrame, positions: List[str] = None, leagues: List[str] = None) -> pd.DataFrame:
     """
-    Filter DataFrame by positions, leagues, and contract expiry status
+    Filter DataFrame by positions and leagues
 
     Args:
         df: DataFrame with all players
         positions: List of positions to include (None or empty = all positions)
         leagues: List of leagues to include (None or empty = all leagues)
-        contract_expired: Filter by contract expiry (True = expired only, False/None = all players)
 
     Returns:
         Filtered DataFrame
@@ -134,21 +138,26 @@ def filter_players(df: pd.DataFrame, positions: List[str] = None, leagues: List[
     # Apply position filter if specified
     if positions and len(positions) > 0:
         #filtered_df = filtered_df[filtered_df['Position'].isin(positions)]
+        # filtered_df = filtered_df[
+        #     filtered_df['Position']
+        #     .str.split(',')
+        #     .apply(lambda pos_list: any(p.strip() in positions for p in pos_list))
+        # ]
+        filtered_df = filtered_df[
+            filtered_df['Position'].notna() &
+            filtered_df['Position'].apply(lambda x: isinstance(x, str))
+        ]
+
         filtered_df = filtered_df[
             filtered_df['Position']
-            .str.split(',')
-            .apply(lambda pos_list: any(p.strip() in positions for p in pos_list))
+                .str.split(',')
+                .apply(lambda pos_list: any(p.strip() in positions for p in pos_list))
         ]
-        
+
 
     # Apply league filter if specified
     if leagues and len(leagues) > 0:
         filtered_df = filtered_df[filtered_df['League'].isin(leagues)]
-
-    # Apply contract expiry filter if specified
-    if contract_expired is True:
-        if 'contract_expiry' in filtered_df.columns:
-            filtered_df = filtered_df[filtered_df['contract_expiry'] == True]
 
     return filtered_df
 

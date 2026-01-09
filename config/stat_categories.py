@@ -30,8 +30,6 @@ STAT_CATEGORIES = {
             {"column": "Accurate passes, %", "display": "Pass Accuracy %"},
             {"column": "Accurate short / medium passes, %", "display": "Short/Medium Pass Accuracy %"},
             {"column": "Accurate long passes, %", "display": "Long Pass Accuracy %"},
-             {"column": "Passes", "display": "Passes (Total)"},
-            {"column": "Long Pass\nCmp %", "display": "Long Pass Cmp %"},
             {"column": "Crosses per 90", "display": "Crosses per 90"},
             {"column": "Accurate crosses, %", "display": "Accurate Crosses %"},
         ]
@@ -50,8 +48,6 @@ STAT_CATEGORIES = {
             {"column": "Goal conversion, %", "display": "Goal Conversion %"},
             {"column": "Touches in box per 90", "display": "Touches in Box per 90"},
             {"column": "Shots per 90", "display": "Shots per 90"},
-            {"column": "xA per Shot Assist", "display": "xA per Shot Assist"},
-
         ]
     },
     "General": {
@@ -60,7 +56,6 @@ STAT_CATEGORIES = {
             {"column": "Fouls per 90", "display": "Fouls per 90"},
             {"column": "Cards per 90", "display": "Cards per 90"},
             {"column": "Fouls suffered per 90", "display": "Fouls Suffered per 90"},
-            {"column": "1st, 2nd, 3rd assists", "display": "1st, 2nd, 3rd Assists"},
             {"column": "Conceded goals per 90", "display": "Conceded Goals per 90"},
             {"column": "Prevented goals per 90", "display": "Prevented Goals per 90"},
             {"column": "Shots against per 90", "display": "Shots Against per 90"},
@@ -68,7 +63,6 @@ STAT_CATEGORIES = {
             {"column": "Exits per 90", "display": "Exits per 90"},
             # {"column": "% of Passes Being Short", "display": "% of Passes Being Short"},
             # {"column": "% of Passes Being Lateral", "display": "% of Passes Being Lateral"},
-            {"column": "Goals prevented %", "display": "Goals Prevented %"},
             {"column": "npxG per shot", "display": "npxG per Shot"},
         ]
     }
@@ -80,7 +74,8 @@ PLAYER_INFO_COLUMNS = {
     "age": "Age",
     "team": "Team",
     "country": "Birth country",
-    "position": "Position"
+    "position": "Position",
+    "league": "Competition"
 }
 
 # Colors for up to 3 players (matching the reference image)

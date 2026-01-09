@@ -716,16 +716,6 @@ def render_player_similarity_page(df_filtered):
     # ========== ADDITIONAL FILTERS SECTION ==========
     st.markdown("### 🔧 Additional Filters")
 
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        contract_expired_filter = st.checkbox(
-            "Show only expired contracts",
-            value=False,
-            help="Filter results to show only players with expired contracts",
-            key="similarity_contract_filter"
-        )
-
     min_minutes = 0
 
     # ========== ADDITIONAL FILTERS SECTION ==========
@@ -790,8 +780,7 @@ def render_player_similarity_page(df_filtered):
                         min_minutes=min_minutes,
                         age_range=age_range,
                         same_position_only=False,
-                        top_n=30,
-                        contract_expired=contract_expired_filter
+                        top_n=30
                     )
 
                     if len(results_df) == 0:
@@ -894,7 +883,7 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
     display_df['Similarity_Percentile'] = display_df['Similarity_Percentile'].round(1)
 
     display_cols = ['Rank', 'Player', 'Team', 'Position', 'Age',
-                   'contract_expiry', 'Similarity_Score', 'Similarity_Percentile']
+                   'Similarity_Score', 'Similarity_Percentile']
 
     for metric in weights.keys():
         if metric in display_df.columns and metric not in display_cols:
@@ -917,11 +906,6 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
     # Column configuration
     column_config = {
         'Rank': st.column_config.NumberColumn("#", width="small"),
-        'contract_expiry': st.column_config.CheckboxColumn(
-            "Contract Expired",
-            help="Yes = contract has expired, No = contract is active",
-            width="small"
-        ),
         'Similarity_Score': st.column_config.NumberColumn(
             "Similarity Score",
             format="%.3f",
@@ -1359,16 +1343,8 @@ def main():
     # Convert selected group to position list for filter_players()
     position_filter = POSITION_GROUPS.get(selected_position_group, None)
 
-    # Contract expired filter
-    contract_expired_filter = st.sidebar.checkbox(
-        "Contract Expired",
-        value=False,
-        help="Show only players with expired contracts",
-        key="global_contract_expiry_filter"
-    )
-
     # Apply global filters
-    df_filtered = filter_players(df_global, positions=position_filter, leagues=league_filter, contract_expired=contract_expired_filter)
+    df_filtered = filter_players(df_global, positions=position_filter, leagues=league_filter)
 
     # Filter summary
     st.sidebar.info(f"📊 Showing **{len(df_filtered)}** players (from {len(df_global)} total)")
