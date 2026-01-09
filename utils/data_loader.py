@@ -115,14 +115,15 @@ def get_distinct_values(df: pd.DataFrame) -> Dict:
     }
 
 
-def filter_players(df: pd.DataFrame, positions: List[str] = None, leagues: List[str] = None) -> pd.DataFrame:
+def filter_players(df: pd.DataFrame, positions: List[str] = None, leagues: List[str] = None, contract_expired: bool = None) -> pd.DataFrame:
     """
-    Filter DataFrame by positions and leagues
+    Filter DataFrame by positions, leagues, and contract expiry status
 
     Args:
         df: DataFrame with all players
         positions: List of positions to include (None or empty = all positions)
         leagues: List of leagues to include (None or empty = all leagues)
+        contract_expired: Filter by contract expiry (True = expired only, False/None = all players)
 
     Returns:
         Filtered DataFrame
@@ -143,6 +144,11 @@ def filter_players(df: pd.DataFrame, positions: List[str] = None, leagues: List[
     # Apply league filter if specified
     if leagues and len(leagues) > 0:
         filtered_df = filtered_df[filtered_df['League'].isin(leagues)]
+
+    # Apply contract expiry filter if specified
+    if contract_expired is True:
+        if 'contract_expiry' in filtered_df.columns:
+            filtered_df = filtered_df[filtered_df['contract_expiry'] == True]
 
     return filtered_df
 

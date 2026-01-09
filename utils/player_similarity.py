@@ -39,7 +39,8 @@ class SimilarityScorer:
         age_range: Tuple[int, int] = (15, 40),
         league_weights: Dict[str, float] = None,
         same_position_only: bool = True,
-        top_n: int = 30
+        top_n: int = 30,
+        contract_expired: bool = None
     ) -> pd.DataFrame:
         """
         Find most similar players to reference player
@@ -52,6 +53,7 @@ class SimilarityScorer:
             league_weights: Dictionary of {league: multiplier} for weighting leagues
             same_position_only: If True, only compare to players in same position
             top_n: Number of top similar players to return
+            contract_expired: Filter by contract expiry (True = expired only, False/None = all players)
 
         Returns:
             DataFrame with top N similar players and similarity scores
@@ -82,6 +84,10 @@ class SimilarityScorer:
         if same_position_only and 'Position' in candidates.columns:
             ref_position = ref_player['Position']
             candidates = candidates[candidates['Position'] == ref_position]
+
+        # Contract expiry filter
+        if contract_expired is True and 'contract_expiry' in candidates.columns:
+            candidates = candidates[candidates['contract_expiry'] == True]
 
         if len(candidates) == 0:
             # Return empty dataframe with expected columns
@@ -168,7 +174,7 @@ class SimilarityScorer:
         result['Rank'] = range(1, len(result) + 1)
 
         # Select relevant columns
-        display_cols = ['Rank', 'Player', 'Team', 'Position', 'Age',
+        display_cols = ['Rank', 'Player', 'Team', 'Position', 'Age', 'contract_expiry',
                        'Similarity_Score', 'Similarity_Percentile'] + metric_names
 
         # Filter to only existing columns
