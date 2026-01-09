@@ -14,6 +14,8 @@ from utils.player_comparison import display_player_comparison, create_stats_tabl
 from utils.player_finder import show_player_finder
 from utils.player_similarity import SimilarityScorer
 import pandas as pd
+from datetime import date
+
 
 # Page configuration
 st.set_page_config(
@@ -714,44 +716,46 @@ def render_player_similarity_page(df_filtered):
     st.markdown("---")
 
     # ========== ADDITIONAL FILTERS SECTION ==========
-    st.markdown("### 🔧 Additional Filters")
+    # st.markdown("### 🔧")
 
-    min_minutes = 0
+    col1, col2, col3 = st.columns(3)
 
-    # ========== ADDITIONAL FILTERS SECTION ==========
-    # st.markdown("### 🔧 Additional Filters")
+    with col1:
+        # Minutes played filter
+        if 'Minutes' in df_filtered.columns:
+            min_minutes = st.number_input(
+                "Minimum Minutes Played:",
+                min_value=0,
+                max_value=int(df_filtered['Minutes'].max()),
+                value=500,
+                step=100,
+                help="Filter out players with fewer minutes",
+                key="similarity_min_minutes"
+            )
+        else:
+            min_minutes = 0
 
-    # col1, col2, col3 = st.columns(3)
+    with col2:
+        # Contract expires filter
+        contract_expires_before = None
+        if 'Contract expires' in df_filtered.columns:
+            contract_date = st.date_input(
+                "Contract Expires Before:",
+                value=date(2026, 1, 10),
+                help="Show only players with contract expiring on or before this date",
+                key="similarity_contract_expires"
+            )
+            # Convert to string format for similarity scorer
+            if contract_date:
+                # Handle both single date and tuple of dates
+                if isinstance(contract_date, tuple):
+                    contract_date = contract_date[0]
+                contract_expires_before = contract_date.strftime('%Y-%m-%d')
 
-    # with col1:
-    #     # Minutes played filter
-    #     if 'Minutes' in df_filtered.columns:
-    #         min_minutes = st.number_input(
-    #             "Minimum Minutes Played:",
-    #             min_value=0,
-    #             max_value=int(df_filtered['Minutes'].max()),
-    #             value=0,
-    #             step=100,
-    #             help="Filter out players with fewer minutes",
-    #             key="similarity_min_minutes"
-    #         )
-    #     else:
-    #         min_minutes = 0
+    with col3:
+        st.empty()  # Placeholder for future filters
 
-    # with col2:
-    #     # Age range filter
-    #     min_age = int(df_filtered['Age'].min())
-    #     max_age = int(df_filtered['Age'].max())
-    #     age_range = st.slider(
-    #         "Age Range:",
-    #         min_value=min_age,
-    #         max_value=max_age,
-    #         value=(min_age, max_age),
-    #         help="Filter by player age range",
-    #         key="similarity_age_range"
-    #     )
-
-    # st.markdown("---")
+    st.markdown("---")
 
     # ========== CALCULATE BUTTON ==========
     # Button callback - ONLY stores to session state (no display inside)
@@ -777,8 +781,9 @@ def render_player_similarity_page(df_filtered):
                     results_df = scorer.calculate_similarity(
                         reference_player_name=selected_player,
                         weights=individual_weights,
-                        min_minutes=min_minutes,
+                        min_minutes=int(min_minutes),
                         age_range=age_range,
+                        contract_expires_before=contract_expires_before,
                         same_position_only=False,
                         top_n=30
                     )
@@ -882,8 +887,12 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
     display_df['Similarity_Score'] = display_df['Similarity_Score'].round(3)
     display_df['Similarity_Percentile'] = display_df['Similarity_Percentile'].round(1)
 
-    display_cols = ['Rank', 'Player', 'Team', 'Position', 'Age',
-                   'Similarity_Score', 'Similarity_Percentile']
+    display_cols = [
+        'Rank', 'Player', 'Team', 'Position', 'Age',
+        'Passport country', 'Foot', 'Height',
+        'Contract expires', 'Market value', 'Minutes played',
+        'Similarity_Score', 'Similarity_Percentile'
+    ]
 
     for metric in weights.keys():
         if metric in display_df.columns and metric not in display_cols:
@@ -906,6 +915,17 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
     # Column configuration
     column_config = {
         'Rank': st.column_config.NumberColumn("#", width="small"),
+        'Player': st.column_config.TextColumn("Player", width="medium"),
+        'Team': st.column_config.TextColumn("Team", width="medium"),
+        'Position': st.column_config.TextColumn("Position", width="small"),
+        'Age': st.column_config.NumberColumn("Age", width="small"),
+        'Passport country': st.column_config.TextColumn("Passport country", width="medium"),
+        'Foot': st.column_config.TextColumn("Foot", width="small"),
+        'Height': st.column_config.NumberColumn("Height (cm)", width="small"),
+        'Weight': st.column_config.NumberColumn("Weight (kg)", width="small"),
+        'Contract expires': st.column_config.TextColumn("Contract expires", width="medium"),
+        'Market value': st.column_config.TextColumn("Market value", width="small"),
+        'Matches played': st.column_config.NumberColumn("Matches", width="small"),
         'Similarity_Score': st.column_config.NumberColumn(
             "Similarity Score",
             format="%.3f",

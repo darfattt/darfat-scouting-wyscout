@@ -4,47 +4,36 @@ Defines which composite attributes are most relevant for each position type
 """
 
 POSITION_RANKINGS = {
-    "DM/CM": {
-        "display_name": "Defensive / Central Midfielders",
-        "key_attributes": [
-            "Tackling",
-            "Positioning",
-            "Security",
-            "ProgPass",
-            "Pressing"
-        ]
-    },
-
     "CB": {
         "display_name": "Center Backs",
         "key_attributes": [
             "Positioning",
-            "Anticipation",
             "Duelling",
             "BoxDefending",
-            "Sweeping"
+            "DefensiveAction",
+            "Composure"
         ]
     },
 
-    "CF": {
-        "display_name": "Centre Forwards",
+    "FB/WB": {
+        "display_name": "Full Backs / Wing Backs",
         "key_attributes": [
-            "Finishing",
-            "AerialThreat",
-            "Movement",
-            "Composure",
-            "Pressing"
+            "Duelling",
+            "BallCarrying",
+            "ProgPass",
+            "Pressing",
+            "WidePlay"
         ]
     },
 
-    "Winger": {
-        "display_name": "Wingers",
+    "DM/CM": {
+        "display_name": "Defensive / Central Midfielders",
         "key_attributes": [
-            "Dribbling",
-            "WidePlay",
-            "Creativity",
-            "ChanceCreation",
-            "Movement"
+            "Positioning",
+            "Security",
+            "ProgPass",
+            "Pressing",
+            "DefensiveAction"
         ]
     },
 
@@ -54,20 +43,41 @@ POSITION_RANKINGS = {
             "Creativity",
             "ChanceCreation",
             "BallCarrying",
+            "Dribbling",
+            "LinkUpPlay"
+        ]
+    },
+
+    "Winger": {
+        "display_name": "Wingers",
+        "key_attributes": [
+            "Dribbling",
+            "WidePlay",
+            "Creativity",
+            "BallCarrying",
+            "LinkUpPlay"
+        ]
+    },
+
+    "CF": {
+        "display_name": "Centre Forwards",
+        "key_attributes": [
+            "Scoring",
+            "AerialThreat",
             "Composure",
-            "ProgPass"
+            "Pressing",
+            "Duelling"
         ]
     },
 
     "ST": {
         "display_name": "Strikers",
         "key_attributes": [
-            "Finishing",
-            "Movement",
+            "Scoring",
             "AerialThreat",
             "Composure",
-            "Pressing"
+            "Pressing",
+            "BallCarrying"
         ]
     }
 }
-

@@ -9,7 +9,7 @@ FORWARD_PRESETS = {
         "description": "Traditional number 9 striker: clinical finisher, aerial threat, box presence",
         "components": [
             {"stat": "Non-penalty goals per 90", "weight": 0.25, "use_percentile": False},
-            {"stat": "npxG per 90", "weight": 0.20, "use_percentile": False},
+            {"stat": "xG per 90", "weight": 0.20, "use_percentile": False},
             {"stat": "Goal conversion, %", "weight": 0.20, "use_percentile": False},
             {"stat": "Touches in box per 90", "weight": 0.15, "use_percentile": False},
             {"stat": "Shots per 90", "weight": 0.10, "use_percentile": False},
@@ -66,7 +66,7 @@ FORWARD_PRESETS = {
             {"stat": "Non-penalty goals per 90", "weight": 0.25, "use_percentile": False},
             {"stat": "Shots per 90", "weight": 0.20, "use_percentile": False},
             {"stat": "Touches in box per 90", "weight": 0.15, "use_percentile": False},
-            {"stat": "npxG per 90", "weight": 0.10, "use_percentile": False}
+            {"stat": "xG per 90", "weight": 0.10, "use_percentile": False}
         ],
         "icon": "🎯"
     }

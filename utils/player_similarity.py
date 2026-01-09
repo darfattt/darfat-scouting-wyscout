@@ -3,7 +3,7 @@ Player similarity calculation using weighted cosine similarity
 """
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from sklearn.metrics.pairwise import cosine_similarity
 
 
@@ -39,6 +39,7 @@ class SimilarityScorer:
         age_range: Tuple[int, int] = (15, 40),
         league_weights: Dict[str, float] = None,
         same_position_only: bool = True,
+        contract_expires_before: Optional[str] = None,
         top_n: int = 30
     ) -> pd.DataFrame:
         """
@@ -77,6 +78,22 @@ class SimilarityScorer:
             min_age, max_age = age_range
             candidates = candidates[(candidates['Age'] >= min_age) &
                                   (candidates['Age'] <= max_age)]
+
+        # Contract expires filter
+        if contract_expires_before and 'Contract expires' in candidates.columns:
+            from datetime import datetime
+            try:
+                cutoff_date = datetime.strptime(contract_expires_before, '%Y-%m-%d')
+                candidates['contract_date'] = candidates['Contract expires'].apply(
+                    lambda x: datetime.strptime(str(x), '%Y-%m-%d') if pd.notna(x) and str(x) != 'nan' else None
+                )
+                candidates = candidates[
+                    (candidates['contract_date'].isna()) |
+                    (candidates['contract_date'] <= cutoff_date)
+                ]
+                candidates = candidates.drop(columns=['contract_date'])
+            except Exception:
+                pass  # Skip filter if date parsing fails
 
         # Same position filter
         if same_position_only and 'Position' in candidates.columns:
@@ -168,8 +185,12 @@ class SimilarityScorer:
         result['Rank'] = range(1, len(result) + 1)
 
         # Select relevant columns
-        display_cols = ['Rank', 'Player', 'Team', 'Position', 'Age',
-                       'Similarity_Score', 'Similarity_Percentile'] + metric_names
+        display_cols = [
+            'Rank', 'Player', 'Team', 'Position', 'Age',
+            'Passport country', 'Foot', 'Height', 'Weight',
+            'Contract expires', 'Market value', 'Matches played',
+            'Similarity_Score', 'Similarity_Percentile'
+        ] + metric_names
 
         # Filter to only existing columns
         display_cols = [col for col in display_cols if col in result.columns]

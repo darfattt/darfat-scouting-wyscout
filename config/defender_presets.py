@@ -10,7 +10,7 @@ DEFENDER_PRESETS = {
         "components": [
             {"stat": "Aerial duels won, %", "weight": 0.30, "use_percentile": False},
             {"stat": "Defensive duels won, %", "weight": 0.25, "use_percentile": False},
-            {"stat": "pAdj Tkl+Int per 90", "weight": 0.20, "use_percentile": False},
+            {"stat": "Sliding tackles per 90", "weight": 0.20, "use_percentile": False},
             {"stat": "Successful defensive actions per 90", "weight": 0.15, "use_percentile": False},
             {"stat": "Conceded goals per 90", "weight": -0.10, "use_percentile": False},
         ],
@@ -23,7 +23,7 @@ DEFENDER_PRESETS = {
             {"stat": "Accurate short / medium passes, %", "weight": 0.30, "use_percentile": False},
             {"stat": "Progressive passes per 90", "weight": 0.25, "use_percentile": False},
             {"stat": "Accurate long passes, %", "weight": 0.20, "use_percentile": False},
-            {"stat": "pAdj Tkl+Int per 90", "weight": 0.15, "use_percentile": False},
+            {"stat": "Sliding tackles per 90", "weight": 0.15, "use_percentile": False},
             {"stat": "Passes per 90", "weight": 0.10, "use_percentile": False},
         ],
         "icon": "⚡"
@@ -45,7 +45,7 @@ DEFENDER_PRESETS = {
         "description": "Pure defensive actions and engagement",
         "components": [
             {"stat": "Successful defensive actions per 90", "weight": 0.25, "use_percentile": False},
-            {"stat": "pAdj Tkl+Int per 90", "weight": 0.25, "use_percentile": False},
+            {"stat": "PAdj Sliding tackles", "weight": 0.25, "use_percentile": False},
             {"stat": "Defensive duels won, %", "weight": 0.20, "use_percentile": False},
             {"stat": "PAdj Interceptions", "weight": 0.15, "use_percentile": False},
             {"stat": "Shots blocked per 90", "weight": 0.15, "use_percentile": False},

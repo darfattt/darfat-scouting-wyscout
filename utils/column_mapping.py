@@ -8,6 +8,7 @@ import numpy as np
 # Column name aliases (old_name → new_name)
 COLUMN_ALIASES = {
     'League': 'Competition',
+    'Minutes': 'Minutes played',
 }
 
 
