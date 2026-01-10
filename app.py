@@ -46,6 +46,40 @@ st.set_page_config(
 # """, unsafe_allow_html=True)
 
 
+def sanitize_key(text: str, prefix: str = "") -> str:
+    """
+    Sanitize text to create a valid Streamlit widget key
+    
+    Args:
+        text: The text to sanitize
+        prefix: Optional prefix to add
+        
+    Returns:
+        Sanitized string safe for use as Streamlit key
+    """
+    sanitized = (
+        text.lower()
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("%", "pct")
+        .replace(",", "")
+        .replace("(", "")
+        .replace(")", "")
+        .replace("-", "_")
+        .replace(".", "_")
+    )
+    
+    sanitized = "".join(c if c.isalnum() or c == "_" else "" for c in sanitized)
+    
+    while "__" in sanitized:
+        sanitized = sanitized.replace("__", "_")
+    
+    if prefix:
+        sanitized = f"{prefix}_{sanitized}"
+    
+    return sanitized
+
+
 @st.cache_data
 def load_global_data():
     """
@@ -342,28 +376,136 @@ def render_player_finder_page(df_filtered):
         st.warning("⚠️ No players match the selected filters. Adjust global filters in sidebar.")
         return
 
+    # ========== SEARCH MODE SELECTION ==========
+    st.markdown("---")
+    st.subheader("🔍 Search Mode")
+
+    search_mode = st.radio(
+        "Find players by:",
+        options=["Role", "Responsibility"],
+        help="Role = tactical presets (Ball Playing, Poacher, etc.)\nResponsibility = composite attributes (Security, Finishing, etc.)",
+        horizontal=True,
+        key="player_finder_search_mode"
+    )
+
+    st.markdown("---")
+
     # ========== PAGE OPTIONS SECTION ==========
     st.markdown("### ⚙️ Select Profile")
 
     col1, col2 = st.columns([3, 1])
 
-    # Get relevant presets based on position data
-    relevant_presets = get_relevant_presets(df_filtered)
-    
+    # Get relevant options based on search mode
+    if search_mode == "Role":
+        # Get relevant role presets based on position data
+        relevant_presets = get_relevant_presets(df_filtered)
+
+        with col1:
+            selected_preset = st.selectbox(
+                "Choose a player profile:",
+                options=list(relevant_presets.keys()),
+                help="Select a preset to start with. You can adjust weights below.",
+                key="preset_selection"
+            )
+
+        with col2:
+            st.info(f"📊 {len(df_filtered)} players available")
+
+        # Show preset info
+        preset_info = relevant_presets[selected_preset]
+        st.info(f"{preset_info['icon']} **{preset_info['display_name']}** - {preset_info['description']}")
+
+    else:  # Responsibility mode
+        from config.composite_attributes import COMPOSITE_ATTRIBUTES
+
+        # Get all responsibilities
+        all_responsibilities = list(COMPOSITE_ATTRIBUTES.keys())
+
+        with col1:
+            selected_responsibility = st.selectbox(
+                "Select Responsibility:",
+                options=all_responsibilities,
+                format_func=lambda x: f"{COMPOSITE_ATTRIBUTES[x]['icon']} {COMPOSITE_ATTRIBUTES[x]['display_name']}",
+                help="Select a composite attribute to find players who excel in this responsibility",
+                key="player_finder_responsibility"
+            )
+
+        with col2:
+            st.info(f"📊 {len(df_filtered)} players available")
+
+        # Show responsibility info
+        responsibility_info = COMPOSITE_ATTRIBUTES[selected_responsibility]
+        st.info(f"{responsibility_info['icon']} **{responsibility_info['display_name']}** - {responsibility_info['description']}")
+
+        # Show archetypes
+        archetypes = responsibility_info.get('archetypes', [])
+        if archetypes:
+            st.caption(f"**Archetypes:** {', '.join(archetypes)}")
+
+        # Use responsibility_info as preset_info for consistency
+        preset_info = responsibility_info
+
+    st.markdown("---")
+
+    # ========== ADVANCED FILTERS SECTION ==========
+    st.markdown("### 🎚️ Advanced Filters")
+
+    col1, col2, col3 = st.columns(3)
+
     with col1:
-        selected_preset = st.selectbox(
-            "Choose a player profile:",
-            options=list(relevant_presets.keys()),
-            help="Select a preset to start with. You can adjust weights below.",
-            key="preset_selection"
-        )
+        # Age Range - PATTERN from Player Similarity
+        if 'Age' in df_filtered.columns:
+            min_age = int(df_filtered['Age'].min())
+            max_age = int(df_filtered['Age'].max())
+            age_range = st.slider(
+                "Age Range:",
+                min_value=min_age,
+                max_value=max_age,
+                value=(min_age, max_age),
+                help="Filter by player age range",
+                key="player_finder_age_range"
+            )
+        else:
+            age_range = None
 
     with col2:
-        st.info(f"📊 {len(df_filtered)} players available")
+        # Minutes Played - DEFAULT: 500 minutes (user preference)
+        if 'Minutes' in df_filtered.columns:
+            min_minutes = st.number_input(
+                "Minimum Minutes Played:",
+                min_value=0,
+                max_value=int(df_filtered['Minutes'].max()),
+                value=500,  # DEFAULT: 500 minutes
+                step=100,
+                help="Filter out players with fewer minutes",
+                key="player_finder_min_minutes"
+            )
+        else:
+            min_minutes = 0
 
-    # Show preset info
-    preset_info = relevant_presets[selected_preset]
-    st.info(f"{preset_info['icon']} **{preset_info['display_name']}** - {preset_info['description']}")
+    with col3:
+        # Contract Expires
+        if 'Contract expires' in df_filtered.columns:
+            from datetime import date
+
+            contract_date = st.date_input(
+                "Contract Expires Before:",
+                value=date(2027, 6, 30),
+                help="Show only players with contract expiring on or before this date",
+                key="player_finder_contract_expires"
+            )
+
+            exclude_null_contract = st.checkbox(
+                "Exclude players with no contract info",
+                value=False,  # Default to including nulls for Player Finder
+                help="Hide players who have None/Null contract expiration dates",
+                key="player_finder_exclude_null_contract"
+            )
+
+            contract_expires_before = contract_date.strftime('%Y-%m-%d')
+        else:
+            contract_expires_before = None
+            exclude_null_contract = False
 
     st.markdown("---")
 
@@ -390,7 +532,7 @@ def render_player_finder_page(df_filtered):
                     value=default_weight,
                     step=0.05,
                     help=f"Weight for {metric} (default: {default_weight})",
-                    key=f"preset_{metric}"
+                    key=sanitize_key(metric, "preset")
                 )
             else:
                 st.warning(f"⚠️ {metric} not available in dataset")
@@ -407,7 +549,7 @@ def render_player_finder_page(df_filtered):
                 metric_cols = st.columns(2)
                 for i, metric in enumerate(other_metrics):
                     with metric_cols[i % 2]:
-                        include = st.checkbox(metric, key=f"include_{metric}")
+                        include = st.checkbox(metric, key=sanitize_key(metric, "include"))
                         if include:
                             weight = st.slider(
                                 "Weight",
@@ -415,7 +557,7 @@ def render_player_finder_page(df_filtered):
                                 max_value=1.0,
                                 value=0.1,
                                 step=0.05,
-                                key=f"weight_{metric}"
+                                key=sanitize_key(metric, "weight")
                             )
                             additional_weights[metric] = weight
             else:
@@ -432,7 +574,7 @@ def render_player_finder_page(df_filtered):
     st.markdown("---")
 
     # ========== CALCULATE BUTTON ==========
-    if st.button("🔄 Calculate Profile Scores", type="primary"):
+    if st.button("Calculate Profile Scores", type="primary", use_container_width=True):
         if total_weight == 0:
             st.error("❌ Please set at least one metric weight greater than 0")
         else:
@@ -441,16 +583,98 @@ def render_player_finder_page(df_filtered):
             if additional_weights:
                 all_weights.update(additional_weights)
 
-            # Create temp preset for calculation
-            temp_preset_config = {
+            # Create temp preset/responsibility for calculation
+            temp_config = {
                 'display_name': preset_info['display_name'],
                 'description': preset_info['description'],
                 'components': [{'stat': k, 'weight': v} for k, v in all_weights.items()],
-                'icon': preset_info['icon']
+                'icon': preset_info.get('icon', '')
             }
 
-            # Display results
-            show_player_finder(df_filtered, {selected_preset: temp_preset_config}, selected_preset)
+            # Calculate scores based on search mode
+            from utils.player_finder import DefenderScorer
+
+            scorer = DefenderScorer({})  # Initialize with empty presets
+
+            try:
+                if search_mode == "Role":
+                    # Use calculate_preset_score with temporary preset
+                    scorer.presets = {selected_preset: temp_config}
+                    results_df, used_weights = scorer.calculate_preset_score(
+                        df_filtered,
+                        selected_preset,
+                        top_n_limit=30,
+                        min_minutes=min_minutes,
+                        age_range=age_range,
+                        contract_expires_before=contract_expires_before,
+                        exclude_null_contract=exclude_null_contract
+                    )
+                    profile_name = selected_preset
+                else:  # Responsibility mode
+                    from config.composite_attributes import COMPOSITE_ATTRIBUTES
+                    # Update temp_config with actual composite attribute definition
+                    temp_composite = {selected_responsibility: temp_config}
+                    results_df, used_weights = scorer.calculate_responsibility_score(
+                        df_filtered,
+                        selected_responsibility,
+                        temp_composite,
+                        top_n_limit=30,
+                        min_minutes=min_minutes,
+                        age_range=age_range,
+                        contract_expires_before=contract_expires_before,
+                        exclude_null_contract=exclude_null_contract
+                    )
+                    profile_name = selected_responsibility
+
+                # Store in session state for persistence across widget changes
+                st.session_state.player_finder_results = {
+                    'results_df': results_df,
+                    'df_filtered': df_filtered,
+                    'search_mode': search_mode,
+                    'profile_name': profile_name,
+                    'used_weights': used_weights,
+                    'scorer': scorer
+                }
+
+            except ValueError as e:
+                st.error(f"❌ Error calculating scores: {str(e)}")
+                st.info("Some metrics may be missing from the dataset.")
+
+    # Display results from session state (persists across widget changes)
+    if 'player_finder_results' in st.session_state and st.session_state.player_finder_results is not None:
+        results = st.session_state.player_finder_results
+        results_df = results['results_df']
+        df_filtered = results['df_filtered']
+        search_mode = results['search_mode']
+        profile_name = results['profile_name']
+        used_weights = results['used_weights']
+        scorer = results['scorer']
+
+        st.markdown("---")
+        st.subheader(f"📊 Profile Scoring Results - {profile_name}")
+
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📋 Results Table",
+            "📊 Score Distribution",
+            "📈 Scatter Plot",
+            "🔍 Player Detail"
+        ])
+
+        with tab1:
+            from utils.player_finder import display_results_table
+            display_results_table(results_df, profile_name, used_weights)
+
+        with tab2:
+            from utils.player_finder import display_score_distribution
+            display_score_distribution(results_df, profile_name)
+
+        with tab3:
+            from utils.player_finder import display_player_finder_scatter_plot
+            display_player_finder_scatter_plot(results_df, df_filtered, search_mode)
+
+        with tab4:
+            from utils.player_finder import display_player_detail
+            display_player_detail(results_df, df_filtered, profile_name, used_weights, scorer)
 
 
 def get_top_stats_with_weights(df_filtered: pd.DataFrame, selected_player: str, player_position: str, top_n: int = 10) -> dict:
@@ -533,6 +757,11 @@ def render_player_similarity_page(df_filtered):
     """
     import plotly.graph_objects as go
     import plotly.express as px
+    from utils.similarity_helpers import (
+        get_position_similarity_weights,
+        get_presets_for_position,
+        map_position_to_group
+    )
 
     st.header("🔍 Player Similarity")
 
@@ -608,6 +837,47 @@ def render_player_similarity_page(df_filtered):
 
     st.markdown("---")
 
+    # ========== PRESET SELECTOR SECTION ==========
+    player_position = ref_player_info['Position']
+
+    # Get position group for preset filtering
+    position_group_for_presets = map_position_to_group(player_position)
+
+    # Get available presets for this position
+    available_presets = get_presets_for_position(player_position)
+
+    # Build selectbox options
+    preset_options = ["Auto (Position-based)"]
+    preset_display_map = {"Auto (Position-based)": "auto"}
+
+    for preset in available_presets:
+        display_name = preset["display_name"]
+        preset_key = preset["key"]
+        preset_options.append(display_name)
+        preset_display_map[display_name] = preset_key
+
+    with st.expander("🎯 Select Similarity Preset", expanded=False):
+        st.markdown("Choose which stats to prioritize for similarity search:")
+
+        selected_preset_display = st.selectbox(
+            "Similarity Profile:",
+            options=preset_options,
+            index=0,  # Default to "Auto (Position-based)"
+            help="Position-based uses all relevant stats for the position. Role presets focus on specific playing styles.",
+            key="similarity_preset_selector"
+        )
+
+        # Get actual preset key
+        selected_preset_key = preset_display_map[selected_preset_display]
+
+        # Display preset description
+        if selected_preset_key != "auto":
+            preset_info = next((p for p in available_presets if p["key"] == selected_preset_key), None)
+            if preset_info:
+                st.info(f"**{preset_info['display_name']}**: {preset_info['description']}")
+        else:
+            st.info(f"**Position-based preset**: Uses all stats relevant to {position_group_for_presets} position, weighted by importance for the role.")
+
     # ========== METRIC WEIGHTS SECTION ==========
     st.markdown("### ⚖️ Adjust Metric Weights")
 
@@ -637,14 +907,28 @@ def render_player_similarity_page(df_filtered):
         for key, config in COMPOSITE_ATTRIBUTES.items()
     }
 
-    if 'selected_player' not in st.session_state or st.session_state.selected_player != selected_player:
-        top_stats_weights = get_top_stats_with_weights(df_filtered, selected_player, player_position, top_n=10)
-        st.session_state.similarity_weights = top_stats_weights
-        st.session_state.selected_player = selected_player
+    # Initialize or reinitialize weights when player or preset changes
+    if ('selected_player' not in st.session_state or
+        st.session_state.selected_player != selected_player or
+        st.session_state.get('selected_preset') != selected_preset_key):
 
+        # Get position-based weights using new function
+        position_weights = get_position_similarity_weights(
+            df_filtered,
+            selected_player,
+            player_position,
+            preset_key=selected_preset_key
+        )
+
+        # Store in session state
+        st.session_state.similarity_weights = position_weights
+        st.session_state.selected_player = selected_player
+        st.session_state.selected_preset = selected_preset_key
+
+    # Fallback if similarity_weights not in session state
     if 'similarity_weights' not in st.session_state:
-        st.session_state.similarity_weights = get_top_stats_with_weights(
-            df_filtered, selected_player, player_position, top_n=10
+        st.session_state.similarity_weights = get_position_similarity_weights(
+            df_filtered, selected_player, player_position, preset_key="auto"
         )
 
     with st.expander("⚙️ Configure Metric Weights", expanded=True):
@@ -669,7 +953,7 @@ def render_player_similarity_page(df_filtered):
                         max_value=1.0,
                         value=default_weight,
                         step=0.05,
-                        key=f"sim_weight_ind_{metric}",
+                        key=sanitize_key(metric, "sim_weight_ind"),
                         help=f"Current weight: {default_weight:.3f}"
                     )
                     adjusted_weights[metric] = weight
@@ -726,7 +1010,7 @@ def render_player_similarity_page(df_filtered):
                             max_value=1.0,
                             value=default_weight,
                             step=0.05,
-                            key=f"sim_weight_ind_add_{metric}",
+                            key=sanitize_key(metric, "sim_weight_ind_add"),
                             help=f"Default based on player's {additional_percentiles[idx]:.1f}th percentile for this stat"
                         )
                         adjusted_weights[metric] = weight
@@ -850,7 +1134,7 @@ def render_player_similarity_page(df_filtered):
                         contract_expires_before=contract_expires_before,
                         exclude_null_contract=exclude_null_contract,
                         same_position_only=False,
-                        top_n=30
+                        top_n=50
                     )
 
                     if len(results_df) == 0:
@@ -945,8 +1229,8 @@ def render_player_similarity_page(df_filtered):
 
 
 def display_similarity_results_table(results_df, reference_player, weights, composite_display_names, relevant_composites):
-    """Display top 30 similar players table with all composite attributes"""
-    st.markdown("#### Top 30 Most Similar Players")
+    """Display top 50 similar players table with all composite attributes"""
+    st.markdown("#### Top 50 Most Similar Players")
 
     display_df = results_df.copy()
     display_df['Similarity_Score'] = display_df['Similarity_Score'].round(3)
@@ -1391,7 +1675,7 @@ def display_similarity_player_detail(results_df, scorer, reference_player, weigh
 
 def main():
     # Title and description
-    st.title("Scouting Hub.")
+    st.title("Scouting Hub")
 #    st.markdown("### Player Comparison & Defender Finder (darfat)")
 #    st.markdown("Compare players side-by-side and find top defenders using weighted scoring profiles.")
 
