@@ -107,7 +107,7 @@ STAT_CATEGORIES = {
             {"column": "Clean sheets", "display": "Clean Sheets"},
             {"column": "Save rate, %", "display": "Save Rate %"},
             {"column": "xG against per 90", "display": "xG Against per 90"},
-            {"column": "Prevented goals per 90", "display": "Prevented Goals per 90"},
+            # {"column": "Prevented goals per 90", "display": "Prevented Goals per 90"},
             {"column": "Back passes received as GK per 90", "display": "Back Passes Received per 90"},
             {"column": "Exits per 90", "display": "Exits per 90"},
             {"column": "Average long pass length, m", "display": "Avg Long Pass Length (m)"},
@@ -123,7 +123,7 @@ STAT_CATEGORIES = {
             {"column": "Direct free kicks per 90", "display": "Direct Free Kicks per 90"},
             {"column": "Direct free kicks on target, %", "display": "Direct Free Kick Accuracy %"},
             {"column": "Corners per 90", "display": "Corners per 90"},
-            {"column": "Penalty conversion, %", "display": "Penalty Conversion %"},
+            # {"column": "Penalty conversion, %", "display": "Penalty Conversion %"},
         ]
     }
 }
