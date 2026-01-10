@@ -1,9 +1,12 @@
 """
-Position-based ranking configuration for defenders
-Defines which composite attributes are most relevant for each defender position type
+Position-based ranking configuration
+Defines which composite attributes are most relevant for each position type
+Includes defender, forward, and attacking midfielder positions
 """
 
 POSITION_RANKINGS = {
+    # ========== DEFENDER POSITIONS ==========
+    
     "CB": {
         "display_name": "Center Backs",
         "key_attributes": [
@@ -56,6 +59,58 @@ POSITION_RANKINGS = {
             "BoxDefending",
             "Creativity",
             "BallCarrying"
+        ]
+    },
+    
+    # ========== FORWARD POSITIONS ==========
+    
+    "CF": {
+        "display_name": "Centre Forwards",
+        "key_attributes": [
+            "CF_Finishing",
+            "CF_BoxPresence",
+            "CF_Movement",
+            "CF_LinkPlay",
+            "CF_Creativity",
+            "CF_BallCarrying",
+            "CF_Pressing"
+        ]
+    },
+    
+    "Winger": {
+        "display_name": "Wingers",
+        "key_attributes": [
+            "OneOnOneAbility",
+            "WideCreation",
+            "BallCarrying",
+            "Finishing",
+            "BoxPresence",
+            "Pressing"
+        ]
+    },
+    
+    "AM": {
+        "display_name": "Attacking Midfielders",
+        "key_attributes": [
+            "FinalBall",
+            "BuildUp",
+            "WideCreation",
+            "Finishing",
+            "Creativity",
+            "Pressing",
+            "BallCarrying"
+        ]
+    },
+    
+    "Complete Forward": {
+        "display_name": "Complete Forwards",
+        "key_attributes": [
+            "CF_Finishing",
+            "CF_BoxPresence",
+            "CF_Movement",
+            "CF_LinkPlay",
+            "CF_Creativity",
+            "CF_BallCarrying"
         ]
     }
 }

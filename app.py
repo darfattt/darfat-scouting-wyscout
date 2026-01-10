@@ -8,6 +8,7 @@ from config.stat_categories import STAT_CATEGORIES, PLAYER_INFO_COLUMNS, PLAYER_
 from config.composite_attributes import COMPOSITE_ATTRIBUTES
 from config.defender_presets import DEFENDER_PRESETS
 from config.forward_presets import FORWARD_PRESETS
+from config.attacking_midfielder_presets import ATTACKING_MIDFIELDER_PRESETS
 from config.position_groups import POSITION_GROUPS, get_position_group_options
 from utils.data_loader import prepare_data_global, get_player_info, get_player_stats, get_all_stat_columns, calculate_composite_attributes, get_player_composite_attrs, get_distinct_values, filter_players
 from utils.player_comparison import display_player_comparison, create_stats_table, display_composite_attributes, display_position_based_rankings
@@ -281,7 +282,7 @@ def render_player_comparison_page(df_filtered):
 
 def get_relevant_presets(df_filtered):
     """
-    Get relevant presets based on the position groups present in filtered data
+    Get relevant presets based on position groups present in filtered data
     
     Args:
         df_filtered: Filtered player dataframe
@@ -291,25 +292,41 @@ def get_relevant_presets(df_filtered):
     """
     from config.position_groups import POSITION_GROUPS
     
-    # Check what positions are in the filtered data
+    # Check what positions are in filtered data
     positions_in_data = df_filtered['Position'].unique()
     
-    # Determine if data contains forward or defender positions
-    has_forwards = any(pos in positions_in_data for pos in ['CF', 'CF, AMF', 'CF, LW', 'CF, RW', 'CF, LWF', 'CF, RWF'])
-    has_defenders = any(pos in positions_in_data for pos in ['CB', 'LB', 'RB', 'CDM', 'DMF'])
+    # Get position groups
+    cf_positions = POSITION_GROUPS.get("CF", [])
+    winger_positions = POSITION_GROUPS.get("Winger", [])
+    am_positions = POSITION_GROUPS.get("AM", [])
+    defender_positions = POSITION_GROUPS.get("Defender", [])
+    all_forward_positions = cf_positions + winger_positions + am_positions
     
-    if has_forwards and has_defenders:
-        # Mixed data - provide all presets
-        all_presets = {}
+    # Determine what positions are present
+    has_strikers = any(pos in positions_in_data for pos in cf_positions)
+    has_wingers = any(pos in positions_in_data for pos in winger_positions)
+    has_am = any(pos in positions_in_data for pos in am_positions)
+    has_defenders = any(pos in positions_in_data for pos in defender_positions)
+    has_forwards = has_strikers or has_wingers or has_am
+    
+    # Build relevant presets dict
+    all_presets = {}
+    
+    if has_defenders:
+        all_presets.update(DEFENDER_PRESETS)
+    
+    if has_forwards:
+        # Include all forward and AM presets
+        all_presets.update(FORWARD_PRESETS)
+        all_presets.update(ATTACKING_MIDFIELDER_PRESETS)
+    
+    # If no positions detected, return all presets as fallback
+    if not all_presets:
         all_presets.update(DEFENDER_PRESETS)
         all_presets.update(FORWARD_PRESETS)
-        return all_presets
-    elif has_forwards:
-        # Forward only data
-        return FORWARD_PRESETS
-    else:
-        # Defender only data
-        return DEFENDER_PRESETS
+        all_presets.update(ATTACKING_MIDFIELDER_PRESETS)
+    
+    return all_presets
 
 
 def render_player_finder_page(df_filtered):
@@ -483,7 +500,7 @@ def get_top_stats_with_weights(df_filtered: pd.DataFrame, selected_player: str, 
                 all_candidate_stats.add(stat_name)
 
     player_stats = get_player_stats(df_filtered, selected_player, list(all_candidate_stats))
-
+    # print(f"player_stats {player_stats}")
     stat_percentiles = {}
     for stat_name in all_candidate_stats:
         if stat_name in player_stats:
@@ -491,6 +508,7 @@ def get_top_stats_with_weights(df_filtered: pd.DataFrame, selected_player: str, 
         else:
             stat_percentiles[stat_name] = 50.0
 
+    # print(f"stat_percentiles {stat_percentiles}")
     sorted_stats = sorted(stat_percentiles.items(), key=lambda x: x[1], reverse=True)
     top_stats = sorted_stats[:top_n]
     print(f"top_stats {top_stats}")
@@ -805,7 +823,7 @@ def render_player_similarity_page(df_filtered):
 
     # ========== CALCULATE BUTTON ==========
     # Button callback - ONLY stores to session state (no display inside)
-    if st.button("🔄 Find Similar Players", type="primary", key="calculate_similarity"):
+    if st.button("Find Similar Players", type="primary", key="calculate_similarity"):
         if not adjusted_weights or sum(adjusted_weights.values()) == 0:
             st.error("❌ Please select at least one metric with weight > 0")
             st.session_state.similarity_results = None
