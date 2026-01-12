@@ -3,24 +3,20 @@ Position grouping configuration for simplified filtering
 Defines logical position groups for easier player filtering
 """
 
+
 POSITION_GROUPS = {
-    "All": None,  # No filtering, all positions
-    "CB": ["CB", "RCB", "LCB", "RCB3", "LCB3", "CB3", "RCB5", "LCB5"],
-    "Fullback": ["LB", "RB", "WB", "RWB", "LWB", "LB5", "RB5", "LWB5", "RWB5"],
-    "Defender": [
-        # CB positions
-        "CB", "RCB", "LCB", "RCB3", "LCB3", "CB3", "RCB5", "LCB5",
-        # Fullback positions
-        "LB", "RB", "WB", "RWB", "LWB", "LB5", "RB5", "LWB5", "RWB5"
-    ],
-    "DM": ["CDM", "RDM", "LDM", "DMF", "RDMF", "LDMF", "DM"],
-    # Forward position groups
-    "CF": ["CF"],  # Pure centre forwards
-    "Winger": ["LW", "RW", "LWF", "RWF",  "RM",  "LM"],
-    "AM": ["AMF", "LCMF", "LAMF", "RAMF","LCMF3", "RCMF3"],
-    "Forward": ["CF","LW", "RW", "LWF", "RWF", "AMF", "LCMF", "LAMF", "RAMF",  "RM",  "LM"],
-    "Left Winger": ["LW", "LWF", "LM"],
-    "Right Winger": ["RW", "RWF", "RM"]
+    "All": None,
+    "CB": ["CB", "RCB", "LCB", "RCB3", "LCB3"],
+    "Fullback": ["LB", "RB", "LB5", "RB5", "LWB", "RWB"],
+    "Defender": ["CB", "RCB", "LCB", "RCB3", "LCB3", "LB", "RB", "LB5", "RB5", "LWB", "RWB"],
+    "DM": ["DMF", "LDMF", "RDMF"],
+    "AM": ["AMF", "LAMF", "RAMF"],
+    "Central Midfielder": ["DMF", "LDMF", "RDMF", "LCMF", "RCMF", "LCMF3", "RCMF3", "AMF", "LAMF", "RAMF"],
+    "Winger": ["LW", "RW", "LWF", "RWF"],
+    "Left Winger": ["LW", "LWF"],
+    "Right Winger": ["RW", "RWF"],
+    "Forward": ["CF", "LW", "RW", "LWF", "RWF", "AMF", "LAMF", "RAMF"],
+    "CF": ["CF"]
 }
 
 

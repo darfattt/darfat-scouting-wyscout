@@ -10,7 +10,12 @@ from config.defender_presets import DEFENDER_PRESETS
 from config.forward_presets import FORWARD_PRESETS
 from config.attacking_midfielder_presets import ATTACKING_MIDFIELDER_PRESETS
 from config.position_groups import POSITION_GROUPS, get_position_group_options
-from utils.data_loader import prepare_data_global, get_player_info, get_player_stats, get_all_stat_columns, calculate_composite_attributes, get_player_composite_attrs, get_distinct_values, filter_players
+from utils.data_loader import (
+    load_all_league_data, calculate_percentiles, calculate_composite_attributes_batch,
+    get_player_info, get_player_stats, get_all_stat_columns,
+    calculate_composite_attributes, get_player_composite_attrs,
+    get_distinct_values, filter_players
+)
 from utils.player_comparison import display_player_comparison, create_stats_table, display_composite_attributes, display_position_based_rankings
 from utils.player_finder import show_player_finder
 from utils.player_similarity import SimilarityScorer
@@ -81,10 +86,13 @@ def sanitize_key(text: str, prefix: str = "") -> str:
 
 
 @st.cache_data
-def load_global_data():
+def load_all_data():
     """
-    Load and cache ALL player data from all leagues
-    Percentiles calculated globally across all players
+    Load raw player data from all leagues WITHOUT percentile calculation
+    Cached with no parameters - only loads once per session
+
+    Returns:
+        DataFrame with raw player data (no percentile or composite columns)
     """
     data_folder = os.path.join(os.getcwd(), "data", "2025")
 
@@ -92,7 +100,50 @@ def load_global_data():
         st.error(f"Data folder not found: {data_folder}")
         st.stop()
 
-    return prepare_data_global(data_folder, STAT_CATEGORIES)
+    # CRITICAL: Only load raw data, no calculations
+    df = load_all_league_data(data_folder)
+
+    return df
+
+
+@st.cache_data
+def prepare_filtered_data(df_all: pd.DataFrame, leagues: tuple, position_group: str) -> pd.DataFrame:
+    """
+    Filter data and calculate percentiles/composites on filtered subset
+    Cached with filter parameters - recalculates when filters change
+
+    Args:
+        df_all: Raw player data from load_all_data()
+        leagues: Tuple of selected league names (must be tuple for hashable cache key)
+        position_group: Selected position group name (e.g., "CB", "DM/CM", "All")
+
+    Returns:
+        Filtered DataFrame with percentile and composite columns
+    """
+    # STEP 1: Determine filter values
+    # Handle "All Leagues" selection
+    if leagues == ("All Leagues",) or len(leagues) == 0:
+        league_filter = None
+    else:
+        league_filter = list(leagues)  # Convert tuple back to list for filter_players()
+
+    # Handle "All" position group
+    if position_group == "All":
+        position_filter = None
+    else:
+        position_filter = POSITION_GROUPS.get(position_group, None)
+
+    # STEP 2: Filter players
+    df_filtered = filter_players(df_all, positions=position_filter, leagues=league_filter)
+
+    # STEP 3: Calculate percentiles on FILTERED dataset
+    stat_columns = get_all_stat_columns(STAT_CATEGORIES)
+    df_filtered = calculate_percentiles(df_filtered, stat_columns)
+
+    # STEP 4: Calculate composite attributes on FILTERED dataset with new percentiles
+    df_filtered = calculate_composite_attributes_batch(df_filtered, stat_columns, COMPOSITE_ATTRIBUTES)
+
+    return df_filtered
 
 
 def build_custom_preset_ui():
@@ -279,8 +330,8 @@ def render_player_comparison_page(df_filtered):
             player_info = get_player_info(df_filtered, player_name, PLAYER_INFO_COLUMNS)
             player_stats = get_player_stats(df_filtered, player_name, stat_columns)
 
-            # Calculate composite attributes
-            composite_attrs = calculate_composite_attributes(player_stats, COMPOSITE_ATTRIBUTES)
+            # Get pre-calculated composite attributes from dataframe (already calculated in batch)
+            composite_attrs = get_player_composite_attrs(df_filtered, player_name, COMPOSITE_ATTRIBUTES)
 
             players_data.append({
                 'info': player_info,
@@ -1679,12 +1730,12 @@ def main():
 #    st.markdown("### Player Comparison & Defender Finder (darfat)")
 #    st.markdown("Compare players side-by-side and find top defenders using weighted scoring profiles.")
 
-    # Load global data (cached)
+    # Load raw data (cached, no parameters)
     with st.spinner("Loading player data from all leagues..."):
-        df_global = load_global_data()
+        df_all = load_all_data()
 
-    # Extract distinct values for filters
-    distinct_values = get_distinct_values(df_global)
+    # Extract distinct values for filters (from raw data)
+    distinct_values = get_distinct_values(df_all)
 
     # ========== SIDEBAR: GLOBAL FILTERS (TOP) ==========
     st.sidebar.markdown("### 🔍 Global Filters")
@@ -1698,7 +1749,6 @@ def main():
         help="Filter by leagues across all pages",
         key="global_league_filter"
     )
-    league_filter = None if "All Leagues" in selected_leagues or len(selected_leagues) == 0 else selected_leagues
 
     # Position group filter (radio buttons for single-select)
     selected_position_group = st.sidebar.radio(
@@ -1709,14 +1759,15 @@ def main():
         key="global_position_group_filter"
     )
 
-    # Convert selected group to position list for filter_players()
-    position_filter = POSITION_GROUPS.get(selected_position_group, None)
+    # Prepare filtered data with recalculated percentiles (cached by filters)
+    # Convert to tuple for hashable cache key, sort for consistency
+    league_tuple = tuple(sorted(selected_leagues)) if selected_leagues else ("All Leagues",)
 
-    # Apply global filters
-    df_filtered = filter_players(df_global, positions=position_filter, leagues=league_filter)
+    with st.spinner("Calculating percentiles and composite attributes..."):
+        df_filtered = prepare_filtered_data(df_all, league_tuple, selected_position_group)
 
     # Filter summary
-    st.sidebar.info(f"📊 Showing **{len(df_filtered)}** players (from {len(df_global)} total)")
+    st.sidebar.info(f"📊 Showing **{len(df_filtered)}** players (from {len(df_all)} total)")
 
     # Check for empty results
     if len(df_filtered) == 0:
@@ -1750,7 +1801,6 @@ def main():
     st.markdown(f"""
     <div style="text-align: center; color: #7f8c8d; font-size: 12px;">
         Data source: Wyscout | Multiple Leagues 2025-2026<br>
-        All statistics are shown as percentile ranks (0-100) calculated globally across {len(df_global)} players from all leagues
     </div>
     """, unsafe_allow_html=True)
 
