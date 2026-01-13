@@ -16,7 +16,7 @@ from utils.data_loader import (
     calculate_composite_attributes, get_player_composite_attrs,
     get_distinct_values, filter_players
 )
-from utils.player_comparison import display_player_comparison, create_stats_table, display_composite_attributes, display_position_based_rankings
+from utils.player_comparison import display_player_comparison, create_stats_table, display_composite_attributes, display_position_based_rankings, display_attribute_rankings_1d_dot
 from utils.player_finder import show_player_finder
 from utils.player_similarity import SimilarityScorer
 import pandas as pd
@@ -255,7 +255,7 @@ def build_custom_preset_ui():
     }
 
 
-def render_player_comparison_page(df_filtered):
+def render_player_comparison_page(df_filtered,selected_position_group):
     """
     Render Player Comparison page content
 
@@ -269,8 +269,6 @@ def render_player_comparison_page(df_filtered):
         return
 
     # ========== PAGE OPTIONS SECTION ==========
-    st.markdown("### ⚙️ Page Options")
-
     col1, col2 = st.columns([2, 1])
     with col1:
         if len(df_filtered) > 0:
@@ -339,29 +337,39 @@ def render_player_comparison_page(df_filtered):
                 'composite_attributes': composite_attrs
             })
 
+        # Infer position type from selected players for position-based rankings
+        #first_player_position = players_data[0]['info']['position']
+
+        # Simple position mapping
+        # if 'CB' in first_player_position or 'LCB' in first_player_position or 'RCB' in first_player_position:
+        #     inferred_position_type = 'CB'
+        # elif 'DMF' in first_player_position or 'CMF' in first_player_position or 'DM' in first_player_position or 'CM' in first_player_position:
+        #     inferred_position_type = 'DM/CM'
+        # else:
+        #     inferred_position_type = selected_position_group
+        inferred_position_type = selected_position_group
+
         # Display comparison
         display_player_comparison(players_data, STAT_CATEGORIES, PLAYER_COLORS[:len(selected_players)])
 
+        # Display attribute rankings with 1D dot chart
+        display_attribute_rankings_1d_dot(
+            players_data,
+            df_filtered,
+            inferred_position_type,
+            PLAYER_COLORS[:len(selected_players)]
+        )
+
         # Display composite attributes
-        display_composite_attributes(players_data, PLAYER_COLORS[:len(selected_players)])
-
-        # Infer position type from selected players for position-based rankings
-        first_player_position = players_data[0]['info']['position']
-
-        # Simple position mapping
-        if 'CB' in first_player_position or 'LCB' in first_player_position or 'RCB' in first_player_position:
-            inferred_position_type = 'CB'
-        elif 'DMF' in first_player_position or 'CMF' in first_player_position or 'DM' in first_player_position or 'CM' in first_player_position:
-            inferred_position_type = 'DM/CM'
-        else:
-            # Default to DM/CM for other positions
-            inferred_position_type = 'DM/CM'
+        with st.expander("View Responsibilities Analysis Graph"):
+            display_composite_attributes(players_data, PLAYER_COLORS[:len(selected_players)])
 
         # Display position-based rankings
-        display_position_based_rankings(players_data, inferred_position_type, PLAYER_COLORS[:len(selected_players)])
+        with st.expander("View Position Based Ranking"):
+            display_position_based_rankings(players_data, inferred_position_type, PLAYER_COLORS[:len(selected_players)])
 
         # Optional: Show detailed statistics table
-        with st.expander("📊 View Detailed Statistics Table"):
+        with st.expander("View Detailed Statistics Table"):
             create_stats_table(players_data, STAT_CATEGORIES)
 
 
@@ -1199,6 +1207,14 @@ def render_player_similarity_page(df_filtered):
                             ['Player'] + composite_columns
                         ]
 
+                        # Find overlapping columns (other than 'Player')
+                        common_cols = set(results_df.columns) & set(['Player'] + composite_columns)
+                        common_cols.discard('Player')
+
+                        if common_cols:
+                            # Drop overlapping columns from right dataframe before merge to prevent duplicates
+                            composite_data = composite_data.drop(columns=common_cols)
+
                         results_df = results_df.merge(
                             composite_data,
                             on='Player',
@@ -1624,6 +1640,7 @@ def display_similarity_scatter_plot_composite(results_df, full_df, reference_pla
 
 def display_similarity_player_detail(results_df, scorer, reference_player, weights):
     """Display detailed player comparison with both composite and individual contributions"""
+    import plotly.graph_objects as go
     import plotly.express as px
     from config.composite_attributes import COMPOSITE_ATTRIBUTES
 
@@ -1724,6 +1741,242 @@ def display_similarity_player_detail(results_df, scorer, reference_player, weigh
         comp_df = pd.DataFrame(comp_data)
         st.dataframe(comp_df, use_container_width=True, hide_index=True)
 
+        # ========== 1D DISTRIBUTION CHARTS FOR RELEVANT COMPOSITES ==========
+        st.markdown("---")
+        st.markdown("#### 📊 Relevant Composite Attribute Distributions")
+        st.caption("Distribution of key attributes across all filtered players, highlighting selected players")
+
+        from config.position_rankings import POSITION_RANKINGS
+
+        ref_player_row = scorer.df[scorer.df['Player'] == reference_player].iloc[0]
+        player_position = ref_player_row['Position']
+
+        position_group = None
+        for pos_group, pos_list in POSITION_GROUPS.items():
+            if pos_list and player_position in pos_list:
+                for rank_group in POSITION_RANKINGS.keys():
+                    if rank_group in pos_group or pos_group in rank_group:
+                        position_group = rank_group
+                        break
+            if position_group:
+                break
+
+        if not position_group:
+            position_group = "CB"
+
+        relevant_composite_names = POSITION_RANKINGS.get(position_group, {}).get('key_attributes', [])
+
+        col1, col2 = st.columns(2)
+        for idx, comp_name in enumerate(relevant_composite_names):
+            comp_col = f"COMP_{comp_name}"
+            if comp_col not in scorer.df.columns or comp_name not in COMPOSITE_ATTRIBUTES:
+                continue
+
+            with col1 if idx % 2 == 0 else col2:
+                fig = go.Figure()
+
+                fig.add_trace(go.Histogram(
+                    x=scorer.df[comp_col],
+                    name='All Players',
+                    marker_color='#9E9E9E',
+                    opacity=0.7,
+                    nbinsx=30
+                ))
+
+                ref_val = scorer.df[scorer.df['Player'] == reference_player][comp_col].iloc[0]
+                fig.add_vline(
+                    x=ref_val,
+                    line_width=3,
+                    line_dash="dash",
+                    line_color='#e74c3c',
+                    annotation_text=f"{reference_player}",
+                    annotation_position="top"
+                )
+
+                sim_val = scorer.df[scorer.df['Player'] == selected_similar_player][comp_col].iloc[0]
+                fig.add_vline(
+                    x=sim_val,
+                    line_width=3,
+                    line_dash="dash",
+                    line_color='#2ecc71',
+                    annotation_text=f"{selected_similar_player}",
+                    annotation_position="bottom"
+                )
+
+                fig.update_layout(
+                    title=COMPOSITE_ATTRIBUTES[comp_name]['display_name'],
+                    xaxis_title='Score',
+                    yaxis_title='Count',
+                    height=300,
+                    plot_bgcolor='#f5f3e8',
+                    paper_bgcolor='#f5f3e8',
+                    showlegend=False
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+        # ========== HORIZONTAL BAR CHART FOR COMPOSITE COMPARISON ==========
+        st.markdown("---")
+        st.markdown("#### 📊 Composite Attribute Comparison")
+        st.caption("Side-by-side comparison of composite attribute scores")
+
+        comp_chart_data = []
+        for comp_col, data in all_composite_contributions.items():
+            comp_chart_data.append({
+                'Attribute': data['display_name'],
+                reference_player: data['reference_value'],
+                selected_similar_player: data['similar_value']
+            })
+
+        if comp_chart_data:
+            bar_df = pd.DataFrame(comp_chart_data)
+
+            bar_df_melted = bar_df.melt(
+                id_vars=['Attribute'],
+                var_name='Player',
+                value_name='Score'
+            )
+
+            fig = px.bar(
+                bar_df_melted,
+                x='Score',
+                y='Attribute',
+                color='Player',
+                orientation='h',
+                barmode='group',
+                color_discrete_map={
+                    reference_player: '#e74c3c',
+                    selected_similar_player: '#2ecc71'
+                },
+                height=400
+            )
+
+            fig.update_layout(
+                title="Composite Attribute Scores Comparison",
+                xaxis_title='Score (0-100)',
+                yaxis_title='Attribute',
+                plot_bgcolor='#f5f3e8',
+                paper_bgcolor='#f5f3e8',
+                legend_title_text=''
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        # ========== DOT MATRIX CHART FOR ROLE/PRESET SCORES ==========
+        st.markdown("---")
+        st.markdown("#### 🎯 Role/Preset Scores Comparison")
+        st.caption("Preset profile scores for both players")
+
+        from config.defender_presets import DEFENDER_PRESETS
+        from config.forward_presets import FORWARD_PRESETS
+        from config.attacking_midfielder_presets import ATTACKING_MIDFIELDER_PRESETS
+        from utils.similarity_helpers import get_presets_for_position
+        from utils.player_finder import DefenderScorer
+
+        available_presets = get_presets_for_position(player_position)
+
+        preset_scores_data = []
+
+        for preset in available_presets:
+            preset_key = preset['key']
+            preset_type = preset['type']
+
+            preset_config = None
+            if preset_type == 'role':
+                if preset['display_name'] in DEFENDER_PRESETS:
+                    preset_config = DEFENDER_PRESETS[preset['display_name']]
+                elif preset['display_name'] in FORWARD_PRESETS:
+                    preset_config = FORWARD_PRESETS[preset['display_name']]
+                elif preset['display_name'] in ATTACKING_MIDFIELDER_PRESETS:
+                    preset_config = ATTACKING_MIDFIELDER_PRESETS[preset['display_name']]
+
+            if preset_config is None:
+                continue
+
+            components = preset_config['components']
+            ref_score = 0
+            sim_score = 0
+            total_weight = 0
+
+            for comp in components:
+                metric = comp['stat']
+                weight = comp['weight']
+                total_weight += abs(weight)
+
+            if total_weight == 0:
+                total_weight = 1
+
+            for comp in components:
+                metric = comp['stat']
+                weight = comp['weight']
+
+                if metric in scorer.df.columns:
+                    ref_val = scorer.df[scorer.df['Player'] == reference_player][metric].iloc[0]
+                    sim_val = scorer.df[scorer.df['Player'] == selected_similar_player][metric].iloc[0]
+                else:
+                    ref_val = 50
+                    sim_val = 50
+
+                ref_score += ref_val * weight
+                sim_score += sim_val * weight
+
+            ref_score_normalized = max(0, min(100, (ref_score / total_weight) * 10 + 50))
+            sim_score_normalized = max(0, min(100, (sim_score / total_weight) * 10 + 50))
+
+            preset_scores_data.append({
+                'Preset': preset['display_name'],
+                'Type': preset_type,
+                'Player': reference_player,
+                'Score': ref_score_normalized
+            })
+            preset_scores_data.append({
+                'Preset': preset['display_name'],
+                'Type': preset_type,
+                'Player': selected_similar_player,
+                'Score': sim_score_normalized
+            })
+
+        if preset_scores_data:
+            preset_df = pd.DataFrame(preset_scores_data)
+
+            fig = px.scatter(
+                preset_df,
+                x='Preset',
+                y='Score',
+                color='Player',
+                symbol='Player',
+                color_discrete_map={
+                    reference_player: '#e74c3c',
+                    selected_similar_player: '#2ecc71'
+                },
+                height=500,
+                size_max=15
+            )
+
+            fig.update_traces(
+                marker=dict(size=12, line=dict(width=2, color='white')),
+                marker_line_width=2
+            )
+
+            fig.update_layout(
+                title="Role/Preset Profile Scores",
+                xaxis_title='Role/Preset',
+                yaxis_title='Score (0-100)',
+                plot_bgcolor='#f5f3e8',
+                paper_bgcolor='#f5f3e8',
+                xaxis_tickangle=-45,
+                hovermode='closest'
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.info(
+                "💡 **How to interpret:**\n\n"
+                "- **Higher scores** indicate better fit for that role/preset\n"
+                "- Compare both players' profiles to see which roles they excel in\n"
+                "- Use this to identify potential positional versatility or specialization"
+            )
+
 def main():
     # Title and description
     st.title("Scouting Hub")
@@ -1790,7 +2043,7 @@ def main():
     st.markdown("---")
 
     if page == "⚽ Player Comparison":
-        render_player_comparison_page(df_filtered)
+        render_player_comparison_page(df_filtered,selected_position_group)
     elif page == "🎯 Player Finder":
         render_player_finder_page(df_filtered)
     elif page == "🔍 Player Similarity":

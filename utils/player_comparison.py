@@ -3,8 +3,11 @@ Visualization utilities for player comparison charts
 """
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
 from typing import List, Dict
 import streamlit as st
+import pandas as pd
+import numpy as np
 
 
 def get_percentile_color(percentile: float) -> str:
@@ -369,7 +372,7 @@ def display_composite_attributes(
         ax.set_yticklabels(names, fontsize=11, fontweight='bold')
         ax.set_xlabel('Score', fontsize=10, fontweight='bold', color='#2c3e50')
         ax.set_title(
-            f'{attr_icon} {attr_name}\n{attr_desc}',
+            f'{attr_name}\n{attr_desc}',
             fontsize=12,
             fontweight='bold',
             color='#2c3e50',
@@ -496,3 +499,204 @@ def display_position_based_rankings(
             )
         }
     )
+
+
+def display_attribute_rankings_1d_dot(
+    players_data: List[Dict],
+    df_filtered: pd.DataFrame,
+    position_type: str,
+    player_colors: List[str]
+):
+    """
+    Display attribute rankings for selected players using 1D dot chart
+
+    Shows all players as background gray dots with selected players highlighted
+    in their respective colors with labels. Shows rank for relevant composite attributes
+    based on position type.
+
+    Args:
+        players_data: List of selected player data dictionaries (with 'composite_attributes' key)
+        df_filtered: Filtered DataFrame with all players
+        position_type: Position type ("CB", "DM/CM", "FB/WB", "CF", "Winger", "AM")
+        player_colors: List of colors for selected players
+    """
+    from config.position_rankings import POSITION_RANKINGS
+    from config.composite_attributes import COMPOSITE_ATTRIBUTES
+
+    st.markdown("---")
+    st.markdown("### 📊 Attribute Rankings - Distribution")
+    st.markdown("*Shows where selected players rank among all players in filtered dataset*")
+
+    if position_type not in POSITION_RANKINGS:
+        st.warning(f"Position type '{position_type}' not found in rankings configuration.")
+        return
+
+    position_config = POSITION_RANKINGS[position_type]
+    relevant_attributes = position_config['key_attributes']
+
+    selected_player_names = [p['info']['name'] for p in players_data]
+
+    fig, ax = plt.subplots(figsize=(14, len(relevant_attributes) * 1.2 + 1))
+    fig.patch.set_facecolor('#f5f3e8')
+    ax.set_facecolor('#f5f3e8')
+
+    y_positions = []
+    attribute_names = []
+    attr_display_info = []
+    df_attr = None
+    max_rank = 100
+
+    for attr_key in relevant_attributes:
+        if attr_key not in COMPOSITE_ATTRIBUTES:
+            continue
+
+        attr_config = COMPOSITE_ATTRIBUTES[attr_key]
+        attr_display = f"{attr_config['display_name']}"
+        attribute_names.append(attr_display)
+        attr_display_info.append(attr_key)
+
+        comp_col = f"COMP_{attr_key}"
+
+        if comp_col not in df_filtered.columns:
+            continue
+
+        y_pos = len(y_positions)
+        y_positions.append(y_pos)
+
+        if comp_col not in df_filtered.columns:
+            continue
+
+        df_attr = df_filtered[[comp_col, 'Player']].copy()
+        df_attr = df_attr.dropna()
+
+        df_attr['rank'] = df_attr[comp_col].rank(method='min', ascending=False)
+        max_rank = max(max_rank, df_attr['rank'].max())
+
+        for _, row in df_attr.iterrows():
+            player_name = row['Player']
+            rank = row['rank']
+
+            jitter = np.random.uniform(-0.15, 0.15)
+
+            if player_name in selected_player_names:
+                player_idx = selected_player_names.index(player_name)
+                color = player_colors[player_idx]
+
+                ax.scatter(
+                    rank,
+                    y_pos + jitter,
+                    color=color,
+                    s=150,
+                    alpha=1.0,
+                    edgecolor='white',
+                    linewidth=2,
+                    zorder=10
+                )
+
+                ax.annotate(
+                    player_name,
+                    (rank, y_pos + jitter),
+                    xytext=(5, 0),
+                    textcoords='offset points',
+                    fontsize=8,
+                    fontweight='bold',
+                    color='#2c3e50',
+                    va='center',
+                    ha='left',
+                    # bbox=dict(
+                    #     boxstyle='round,pad=0.3',
+                    #     facecolor=color + '40',
+                    #     edgecolor=color,
+                    #     linewidth=1
+                    # )
+                )
+            else:
+                ax.scatter(
+                    rank,
+                    y_pos + jitter,
+                    color='#95a5a6',
+                    s=20,
+                    alpha=0.3,
+                    edgecolor='none',
+                    zorder=1
+                )
+
+    if not y_positions:
+        st.warning("No composite attributes found for the selected position type.")
+        plt.close(fig)
+        return
+
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(attribute_names, fontsize=11, fontweight='bold')
+    ax.set_xlabel('Rank Position', fontsize=12, fontweight='bold', color='#2c3e50')
+
+    ax.set_xlim(0, max_rank + 5)
+
+    ax.grid(axis='x', alpha=0.3, linestyle='--', linewidth=0.5)
+    ax.set_axisbelow(True)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_color('#95a5a6')
+
+    percentile_positions = [
+        {'pct': 0.10, 'color': '#2ecc71', 'label': 'Top 10%'},
+        {'pct': 0.25, 'color': '#3498db', 'label': 'Top 25%'},
+        {'pct': 0.50, 'color': '#f39c12', 'label': 'Top 50%'}
+    ]
+
+    for pct_info in percentile_positions:
+        x_pos = max_rank * pct_info['pct']
+        ax.axvline(x=x_pos, color=pct_info['color'], linestyle='--', linewidth=1.5, alpha=0.5)
+        ax.text(
+            x_pos,
+            len(y_positions) - 0.5,
+            pct_info['label'],
+            fontsize=8,
+            color=pct_info['color'],
+            rotation=0,
+            ha='center',
+            va='bottom',
+            alpha=0.7
+        )
+
+    legend_elements = []
+    for idx, name in enumerate(selected_player_names):
+        legend_elements.append(
+            Line2D(
+                [0], [0],
+                marker='o',
+                color='w',
+                markerfacecolor=player_colors[idx],
+                markersize=10,
+                label=name,
+                markeredgecolor='white',
+                markeredgewidth=2
+            )
+        )
+
+    legend_elements.append(
+        Line2D(
+            [0], [0],
+            marker='o',
+            color='w',
+            markerfacecolor='#95a5a6',
+            markersize=6,
+            label='Other Players',
+            alpha=0.5
+        )
+    )
+
+    ax.legend(
+        handles=legend_elements,
+        loc='lower right',
+        fontsize=9,
+        framealpha=0.95,
+        edgecolor='#95a5a6',
+        facecolor='#ffffff'
+    )
+
+    plt.tight_layout()
+    st.pyplot(fig, use_container_width=True)
+    plt.close(fig)

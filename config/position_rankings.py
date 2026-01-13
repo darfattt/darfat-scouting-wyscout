@@ -10,11 +10,14 @@ POSITION_RANKINGS = {
     "CB": {
         "display_name": "Center Backs",
         "key_attributes": [
+            "ProgPass",
+            "BallCarrying",
             "Security",
+            "BuildUp"
             "Duelling",
+            "ProactiveDefending",
             "BoxDefending",
             "Sweeping",
-            "ProgPass"
         ]
     },
 
