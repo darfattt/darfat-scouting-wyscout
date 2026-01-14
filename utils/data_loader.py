@@ -330,6 +330,7 @@ def get_player_info(df: pd.DataFrame, player_name: str, info_columns: Dict) -> D
     info = {
         'name': player_row[info_columns['name']],
         'age': int(player_row[info_columns['age']]),
+        'minutes': int(player_row[info_columns['minutes']]),
         'team': player_row[info_columns['team']],
         'country': player_row[info_columns['country']],
         'position': player_row[info_columns['position']]

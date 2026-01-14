@@ -157,7 +157,7 @@ COMPOSITE_ATTRIBUTES = {
         "icon": "🥋"
     },
     "WINGER_BallCarrying": {
-        "display_name": "Ball Carrying",
+        "display_name": "Ball Carrying (Winger)",
         "description": "Ability to dribble and carry the ball up the pitch, progressing play or catalysing a transition for your team. Take on ability is part of the responsibility but not the focus, the focus is more on driving into space and retaining the ball. Key for industrious wingers who play in transition sides.",
         "archetypes": ["Bukayo Saka", "Francisco Conceição", "Anthony Gordon"],
         "components": [

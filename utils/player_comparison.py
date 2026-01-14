@@ -187,14 +187,14 @@ def create_player_header(player_info: Dict, color: str):
         margin: 10px 0 20px 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     ">
-        <h2 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 22px; font-weight: 700;">
+        <h2 style="margin: 0 0 4px 0; color: #2c3e50; font-size: 22px; font-weight: 700;">
             {player_info['name']}
         </h2>
         <div style="margin: 0; color: #7f8c8d; font-size: 13px; line-height: 1.6;">
             <strong>Age:</strong> {player_info['age']} |
             <strong>Position:</strong> {player_info['position']}<br>
             <strong>Team:</strong> {player_info['team']} |
-            <strong>Country:</strong> {player_info['country']}
+            <strong>Country:</strong> {player_info['country']} | <strong>Min Played:</strong> {player_info['minutes']}
         </div>
     </div>
     """
@@ -373,15 +373,15 @@ def display_composite_attributes(
         ax.set_xlabel('Score', fontsize=10, fontweight='bold', color='#2c3e50')
         ax.set_title(
             f'{attr_name}\n{attr_desc}',
-            fontsize=12,
+            fontsize=10,
             fontweight='bold',
             color='#2c3e50',
-            pad=15
+            pad=0
         )
 
         # Set x-axis limits
         max_score = max(scores) if scores else 100
-        ax.set_xlim(-5, max_score + 10)
+        ax.set_xlim(0, max_score)
 
         # Add grid
         ax.grid(axis='x', alpha=0.3, linestyle='--', linewidth=0.5)
@@ -524,7 +524,7 @@ def display_attribute_rankings_1d_dot(
     from config.composite_attributes import COMPOSITE_ATTRIBUTES
 
     st.markdown("---")
-    st.markdown("### 📊 Attribute Rankings - Distribution")
+    st.markdown("### Responsibility Rankings - Distribution")
     st.markdown("*Shows where selected players rank among all players in filtered dataset*")
 
     if position_type not in POSITION_RANKINGS:
@@ -598,7 +598,7 @@ def display_attribute_rankings_1d_dot(
                     (rank, y_pos + jitter),
                     xytext=(5, 0),
                     textcoords='offset points',
-                    fontsize=8,
+                    fontsize=5,
                     fontweight='bold',
                     color='#2c3e50',
                     va='center',
@@ -630,7 +630,7 @@ def display_attribute_rankings_1d_dot(
     ax.set_yticklabels(attribute_names, fontsize=11, fontweight='bold')
     ax.set_xlabel('Rank Position', fontsize=12, fontweight='bold', color='#2c3e50')
 
-    ax.set_xlim(0, max_rank + 5)
+    ax.set_xlim(max_rank, 0)
 
     ax.grid(axis='x', alpha=0.3, linestyle='--', linewidth=0.5)
     ax.set_axisbelow(True)
@@ -641,13 +641,13 @@ def display_attribute_rankings_1d_dot(
     ax.spines['bottom'].set_color('#95a5a6')
 
     percentile_positions = [
-        {'pct': 0.10, 'color': '#2ecc71', 'label': 'Top 10%'},
-        {'pct': 0.25, 'color': '#3498db', 'label': 'Top 25%'},
+        {'pct': 0.90, 'color': '#2ecc71', 'label': 'Top 10%'},
+        {'pct': 0.75, 'color': '#3498db', 'label': 'Top 25%'},
         {'pct': 0.50, 'color': '#f39c12', 'label': 'Top 50%'}
     ]
 
     for pct_info in percentile_positions:
-        x_pos = max_rank * pct_info['pct']
+        x_pos = max_rank * (1 - pct_info['pct'])
         ax.axvline(x=x_pos, color=pct_info['color'], linestyle='--', linewidth=1.5, alpha=0.5)
         ax.text(
             x_pos,
@@ -700,3 +700,215 @@ def display_attribute_rankings_1d_dot(
     plt.tight_layout()
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
+
+
+def display_role_preset_match(
+    players_data: List[Dict],
+    df_filtered: pd.DataFrame,
+    position_group: str,
+    player_colors: List[str]
+):
+    """
+    Display role/preset match ratings for selected players using circle rating system
+
+    Shows how well each player matches different role/preset profiles using
+    5-circle rating system (filled = good match, empty = poor match).
+    Presets are sorted by score (highest first). Only shows roles relevant to
+    each player's position.
+
+    Args:
+        players_data: List of selected player data dictionaries (with 'composite_attributes' and 'stats' keys)
+        df_filtered: Filtered DataFrame with all players
+        position_group: Position group (not used, preserved for compatibility)
+        player_colors: List of colors for selected players
+    """
+    from config.defender_presets import DEFENDER_PRESETS
+    from config.forward_presets import FORWARD_PRESETS
+    from config.attacking_midfielder_presets import ATTACKING_MIDFIELDER_PRESETS
+    from utils.data_loader import get_player_stats
+    from config.stat_categories import STAT_CATEGORIES
+    from config.composite_attributes import COMPOSITE_ATTRIBUTES
+
+    st.markdown("---")
+    st.markdown("### Role Analysis")
+    st.markdown(f"*Shows how well each player matches different tactical roles for {position_group}*")
+
+    # Map individual positions to relevant preset categories
+    position_preset_mapping = {
+        # Defender positions
+        'CB': DEFENDER_PRESETS,
+        'Fullback': DEFENDER_PRESETS,
+        'Defender': DEFENDER_PRESETS,
+        'DM': {**DEFENDER_PRESETS, **ATTACKING_MIDFIELDER_PRESETS},
+        'AM': ATTACKING_MIDFIELDER_PRESETS,
+        'Central Midfielder': {**DEFENDER_PRESETS, **ATTACKING_MIDFIELDER_PRESETS},
+        
+        'Winger': ATTACKING_MIDFIELDER_PRESETS,
+        'Left Winger': ATTACKING_MIDFIELDER_PRESETS,
+        'Right Winger': ATTACKING_MIDFIELDER_PRESETS,
+        # Centre Forward positions
+        'CF': FORWARD_PRESETS,
+        'Forward': {**ATTACKING_MIDFIELDER_PRESETS, **FORWARD_PRESETS},
+        'default': {**DEFENDER_PRESETS, **FORWARD_PRESETS, **ATTACKING_MIDFIELDER_PRESETS}
+    }
+
+    num_players = len(players_data)
+
+    # Create columns for each player
+    cols = st.columns(num_players)
+
+    for idx, (col, player_data) in enumerate(zip(cols, players_data)):
+        with col:
+            player_name = player_data['info']['name']
+            player_position = player_data['info']['position']
+
+            st.markdown(f"#### {player_name}")
+            st.caption(f"**Position:** {player_position}")
+
+            # Get relevant presets based on this player's actual position
+            relevant_presets = position_preset_mapping.get(
+                position_group,
+                position_preset_mapping['default']
+            )
+
+            # Calculate scores for all relevant presets
+            preset_scores = []
+
+            for preset_key, preset_config in relevant_presets.items():
+                preset_icon = ''#preset_config.get('icon', '')
+                preset_display = preset_config['display_name']
+
+                # Calculate weighted score for this player
+                components = preset_config.get('components', [])
+                total_weight = 0
+                weighted_sum = 0
+
+                for component in components:
+                    stat_name = component['stat']
+                    weight = component['weight']
+
+                    if stat_name in player_data['stats']:
+                        stat_value = player_data['stats'][stat_name].get('percentile', 50.0)
+                        weighted_sum += abs(weight) * stat_value
+                        total_weight += abs(weight)
+
+                # Normalize to 0-100 scale
+                if total_weight > 0:
+                    normalized_score = weighted_sum / total_weight
+                else:
+                    normalized_score = 50.0
+
+                preset_scores.append({
+                    'key': preset_key,
+                    'icon': preset_icon,
+                    'display': preset_display,
+                    'score': normalized_score
+                })
+
+            # Sort by score descending (highest first)
+            preset_scores.sort(key=lambda x: x['score'])
+
+            # Create visualization
+            fig, ax = plt.subplots(figsize=(9, len(preset_scores) * 0.7 + 1.5))
+            fig.patch.set_facecolor('#f5f3e8')
+            ax.set_facecolor('#f5f3e8')
+
+            y_positions = range(len(preset_scores))
+            preset_labels = [f"{ps['icon']} {ps['display']}" for ps in preset_scores]
+
+            for y_pos, preset_score in enumerate(preset_scores):
+                score = preset_score['score']
+                color = player_colors[idx]
+
+                
+
+                # Draw 5 circles based on score
+                circle_spacing = 1
+                num_circles = 8
+                last_circle_x = (num_circles - 1) * circle_spacing + 0.5
+                score_x = last_circle_x + 0.6
+
+                # Calculate number of filled circles (0-num_circles scale)
+                circle_scale = 100/num_circles
+                num_filled = int(score / circle_scale)
+                partial_fill = (score % circle_scale) / circle_scale
+
+                circle_size = 1600
+                empty_color = '#bdc3c7'
+
+                for circle_idx in range(num_circles):
+                    x_pos = circle_idx * circle_spacing + 0.5
+                    #x_pos = (num_circles - 1) * circle_spacing + 0.5
+
+                    if circle_idx < num_filled:
+                        fill_color = color
+                        alpha = 1.0
+                        edgecolor = 'white'
+                        linewidth = 2
+                    elif circle_idx == num_filled and partial_fill > 0:
+                        fill_color = color
+                        alpha = 0.4
+                        edgecolor = 'white'
+                        linewidth = 1
+                    else:
+                        fill_color = empty_color
+                        alpha = 0.8
+                        edgecolor = '#95a5a6'
+                        linewidth = 0.5
+
+                    ax.scatter(
+                        x_pos,
+                        y_pos,
+                        s=circle_size,
+                        c=fill_color,
+                        alpha=alpha,
+                        edgecolor=edgecolor,
+                        linewidth=linewidth,
+                        zorder=10
+                    )
+
+                # Add score label
+                ax.text(
+                    score_x,
+                    y_pos,
+                    f'{score:.0f}',
+                    va='center',
+                    ha='left',
+                    fontsize=11,
+                    fontweight='bold',
+                    color='#2c3e50'
+                )
+
+            ax.set_yticks(y_positions)
+            ax.set_yticklabels(preset_labels, fontsize=10, fontweight='bold')
+            ax.set_xlabel('Role Rating', fontsize=10, fontweight='bold', color='#2c3e50')
+
+            #ax.set_xlim(-0.5, 12.5)
+            #ax.set_xlim(-0.2, 5 * circle_spacing + 2.5)
+            ax.set_xlim(-0.3, score_x + 0.8)
+            ax.set_ylim(-0.5, len(preset_scores) - 0.5)
+
+            ax.grid(axis='y', alpha=0.2, linestyle='-', linewidth=0.5)
+            ax.set_axisbelow(True)
+
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_color('#95a5a6')
+            ax.spines['bottom'].set_color('#95a5a6')
+            ax.set_xticks([])
+
+            # Add legend for circles
+            #legend_text = "●●●●● = Excellent Match | ●●●○○ = Good Match | ○○○○○ = Poor Match"
+            legend_text = None
+            ax.text(
+                0,
+                len(preset_scores) + 0.2,
+                legend_text,
+                fontsize=8,
+                color='#7f8c8d',
+                bbox=dict(boxstyle='round,pad=0.5', facecolor='#ffffff', edgecolor='#95a5a6', linewidth=1)
+            )
+
+            plt.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)

@@ -133,6 +133,7 @@ PLAYER_INFO_COLUMNS = {
     "name": "Player",
     "age": "Age",
     "team": "Team",
+    "minutes": "Minutes played",
     "country": "Birth country",
     "position": "Position",
     "league": "Competition"

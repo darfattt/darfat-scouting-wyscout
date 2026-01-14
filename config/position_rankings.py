@@ -13,7 +13,6 @@ POSITION_RANKINGS = {
             "ProgPass",
             "BallCarrying",
             "Security",
-            "BuildUp"
             "Duelling",
             "ProactiveDefending",
             "BoxDefending",
@@ -21,7 +20,7 @@ POSITION_RANKINGS = {
         ]
     },
 
-    "FB/WB": {
+    "Fullback": {
         "display_name": "Full Backs / Wing Backs",
         "key_attributes": [
             "Duelling",
@@ -32,7 +31,7 @@ POSITION_RANKINGS = {
         ]
     },
 
-    "DM/CM": {
+    "DM": {
         "display_name": "Defensive / Central Midfielders",
         "key_attributes": [
             "Security",

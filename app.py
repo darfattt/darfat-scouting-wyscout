@@ -16,7 +16,7 @@ from utils.data_loader import (
     calculate_composite_attributes, get_player_composite_attrs,
     get_distinct_values, filter_players
 )
-from utils.player_comparison import display_player_comparison, create_stats_table, display_composite_attributes, display_position_based_rankings, display_attribute_rankings_1d_dot
+from utils.player_comparison import display_player_comparison, create_stats_table, display_composite_attributes, display_position_based_rankings, display_attribute_rankings_1d_dot, display_role_preset_match
 from utils.player_finder import show_player_finder
 from utils.player_similarity import SimilarityScorer
 import pandas as pd
@@ -359,6 +359,15 @@ def render_player_comparison_page(df_filtered,selected_position_group):
             inferred_position_type,
             PLAYER_COLORS[:len(selected_players)]
         )
+
+        # Display role/preset match analysis
+        with st.expander("View Role/Preset Match"):
+            display_role_preset_match(
+                players_data,
+                df_filtered,
+                selected_position_group,
+                PLAYER_COLORS[:len(selected_players)]
+            )
 
         # Display composite attributes
         with st.expander("View Responsibilities Analysis Graph"):
