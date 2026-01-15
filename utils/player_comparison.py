@@ -690,9 +690,9 @@ def display_attribute_rankings_1d_dot(
 
     ax.legend(
         handles=legend_elements,
-        loc='lower right',
-        fontsize=9,
-        framealpha=0.95,
+        loc='lower left',
+        fontsize=8,
+        framealpha=0.85,
         edgecolor='#95a5a6',
         facecolor='#ffffff'
     )
@@ -723,6 +723,8 @@ def display_role_preset_match(
         player_colors: List of colors for selected players
     """
     from config.defender_presets import DEFENDER_PRESETS
+    from config.fullback_presets import FULLBACK_PRESETS
+    from config.midfielder_presets import MIDFIELDER_PRESETS
     from config.forward_presets import FORWARD_PRESETS
     from config.attacking_midfielder_presets import ATTACKING_MIDFIELDER_PRESETS
     from utils.data_loader import get_player_stats
@@ -737,9 +739,9 @@ def display_role_preset_match(
     position_preset_mapping = {
         # Defender positions
         'CB': DEFENDER_PRESETS,
-        'Fullback': DEFENDER_PRESETS,
-        'Defender': DEFENDER_PRESETS,
-        'DM': {**DEFENDER_PRESETS, **ATTACKING_MIDFIELDER_PRESETS},
+        'Fullback': FULLBACK_PRESETS,
+        'Defender': {**DEFENDER_PRESETS, **FULLBACK_PRESETS},
+        'DM': MIDFIELDER_PRESETS,
         'AM': ATTACKING_MIDFIELDER_PRESETS,
         'Central Midfielder': {**DEFENDER_PRESETS, **ATTACKING_MIDFIELDER_PRESETS},
         

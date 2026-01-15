@@ -132,17 +132,34 @@ def get_forward_preset_options():
 
 def get_all_preset_options():
     """
-    Returns all preset options (defender + forward + attacking midfielder) for UI dropdown
-    
+    Returns all preset options (defender + fullback + forward + attacking midfielder) for UI dropdown
+
     Returns:
         Dict of all presets merged
     """
     from config.defender_presets import DEFENDER_PRESETS
+    from config.fullback_presets import FULLBACK_PRESETS
+    from config.midfielder_presets import MIDFIELDER_PRESETS
     from config.attacking_midfielder_presets import ATTACKING_MIDFIELDER_PRESETS
-    
+
+
+def get_all_preset_options():
+    """
+    Returns all preset options (defender + fullback + midfielder + forward + attacking midfielder) for UI dropdown
+
+    Returns:
+        Dict of all presets merged
+    """
+    from config.defender_presets import DEFENDER_PRESETS
+    from config.fullback_presets import FULLBACK_PRESETS
+    from config.midfielder_presets import MIDFIELDER_PRESETS
+    from config.attacking_midfielder_presets import ATTACKING_MIDFIELDER_PRESETS
+
     all_presets = {}
     all_presets.update(DEFENDER_PRESETS)
+    all_presets.update(FULLBACK_PRESETS)
+    all_presets.update(MIDFIELDER_PRESETS)
     all_presets.update(FORWARD_PRESETS)
     all_presets.update(ATTACKING_MIDFIELDER_PRESETS)
-    
+
     return all_presets

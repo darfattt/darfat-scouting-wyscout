@@ -115,6 +115,266 @@ COMPOSITE_ATTRIBUTES = {
         ],
         "icon": "🧹"
     },
+    # ========== DM RESPONSIBILITIES ==========
+
+    "DM_Destroying": {
+        "display_name": "Destroying",
+        "description": "Ability to protect backline, breaking up opponents transitions and duelling during defensive phase. Emphasis on duels, recoveries and aerials. Key for defensive midfielders.",
+        "archetypes": ["Martín Zubimendi", "Anton Stach", "Christian Nørgaard"],
+        "components": [
+            {"stat": "Duels won, %", "weight": 0.35, "use_percentile": True},
+            {"stat": "Defensive duels per 90", "weight": 0.22, "use_percentile": True},
+            {"stat": "Aerial duels won, %", "weight": 0.22, "use_percentile": True},
+            {"stat": "Aerial duels per 90", "weight": 0.14, "use_percentile": True},
+            {"stat": "Interceptions per 90", "weight": 0.07, "use_percentile": True},
+        ],
+        "icon": "🗑️"
+    },
+
+    "DM_BallWinning": {
+        "display_name": "Ball Winning",
+        "description": "Ability to win possession back from opponent through pressures, interceptions and tackles. Emphasis on defensive volume and height, winning ball in middle and upper thirds of pitch. Key for high-energy midfielders in a pressing system.",
+        "archetypes": ["Manuel Ugarte", "Alexis Mac Allister", "Elliot Anderson"],
+        "components": [
+            {"stat": "PAdj Interceptions", "weight": 0.28, "use_percentile": True},
+            {"stat": "Successful defensive actions per 90", "weight": 0.22, "use_percentile": True},
+            {"stat": "Interceptions per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "Sliding tackles per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "PAdj Sliding tackles", "weight": 0.09, "use_percentile": True},
+            {"stat": "Defensive duels per 90", "weight": 0.08, "use_percentile": True},
+            {"stat": "Duels won, %", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "⚔️"
+    },
+
+    "DM_Dictating": {
+        "display_name": "Dictating",
+        "description": "Ability to control possession for your team, receiving ball frequently, moving it quickly and keeping possession secure. Progression or creation is not the aim, more so providing a passing options and controlling tempo of play. Key for a midfielder in a team that holds a lot of ball.",
+        "archetypes": ["João Neves", "Aleksandar Pavlovic", "Nicolás González"],
+        "components": [
+            {"stat": "Passes per 90", "weight": 0.30, "use_percentile": True},
+            {"stat": "Accurate passes, %", "weight": 0.22, "use_percentile": True},
+            {"stat": "Received passes per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "Accurate short / medium passes, %", "weight": 0.15, "use_percentile": True},
+            {"stat": "Average pass length, m", "weight": 0.10, "use_percentile": True},
+            {"stat": "Forward passes per 90", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "🎭"
+    },
+
+    "DM_ProgPass": {
+        "display_name": "Prog. Pass",
+        "description": "Ability to progress possession and territory for your team using forward passing. Emphasis on passing through thirds and through defensive lines. Key for a midfielder who drops deeper, trying to pass to forwards in advanced positions.",
+        "archetypes": ["Joshua Kimmich", "Daniel Parejo", "Granit Xhaka"],
+        "components": [
+            {"stat": "Progressive passes per 90", "weight": 0.30, "use_percentile": True},
+            {"stat": "Passes to final third per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Accurate forward passes, %", "weight": 0.18, "use_percentile": True},
+            {"stat": "Accurate progressive passes, %", "weight": 0.15, "use_percentile": True},
+            {"stat": "Forward passes per 90", "weight": 0.10, "use_percentile": True},
+            {"stat": "Average pass length, m", "weight": 0.07, "use_percentile": True},
+        ],
+        "icon": "⚡"
+    },
+
+    "DM_BallCarrying": {
+        "display_name": "Ball Carrying",
+        "description": "Ability to dribble and carry ball up pitch, progressing play or catalysing a transition for your team. Take on ability is part of responsibility but not the focus, the focus is more on driving into space ahead of player. Key for a box-to-box midfielder playing in a transition heavy side, or one who frequently receives ball in space.",
+        "archetypes": ["Elliot Anderson", "Mahdi Camara", "Scott McTominay"],
+        "components": [
+            {"stat": "Progressive runs per 90", "weight": 0.30, "use_percentile": True},
+            {"stat": "Successful dribbles, %", "weight": 0.22, "use_percentile": True},
+            {"stat": "Accelerations per 90", "weight": 0.22, "use_percentile": True},
+            {"stat": "Offensive duels won, %", "weight": 0.15, "use_percentile": True},
+            {"stat": "Dribbles per 90", "weight": 0.08, "use_percentile": True},
+            {"stat": "Offensive duels per 90", "weight": 0.03, "use_percentile": True},
+        ],
+        "icon": "🏃"
+    },
+
+    "DM_BoxCrashing": {
+        "display_name": "Box Crashing",
+        "description": "Ability to move into advanced positions in and around box, receive ball under pressure, and create shooting opportunities for themselves or their teammates. Emphasis on getting into box or on end of crosses and cutbacks. Key for goalscoring midfielder who often joins attacking line.",
+        "archetypes": ["Scott McTominay", "Xavi Simons", "Abdoulaye Doucoure"],
+        "components": [
+            {"stat": "Touches in box per 90", "weight": 0.30, "use_percentile": True},
+            {"stat": "Shots per 90", "weight": 0.22, "use_percentile": True},
+            {"stat": "xG per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "Shot assists per 90", "weight": 0.16, "use_percentile": True},
+            {"stat": "Progressive runs per 90", "weight": 0.10, "use_percentile": True},
+            {"stat": "Dribbles per 90", "weight": 0.04, "use_percentile": True},
+        ],
+        "icon": "💥"
+    },
+
+    "DM_Creativity": {
+        "display_name": "Creativity",
+        "description": "Ability to create chances for their team, primarily through passing. Vital that player can penetrate box with passes and crosses, execute final ball well, and receive ball in final third. Key for an attacking midfielder, 8/10 hybrid player.",
+        "archetypes": ["Bruno Fernandes", "Nadiem Amiri", "Kevin Stöger"],
+        "components": [
+            {"stat": "Smart passes per 90", "weight": 0.22, "use_percentile": True},
+            {"stat": "Key passes per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "xA per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "Passes to final third per 90", "weight": 0.14, "use_percentile": True},
+            {"stat": "Passes to penalty area per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "Shot assists per 90", "weight": 0.10, "use_percentile": True},
+            {"stat": "Accurate short / medium passes, %", "weight": 0.06, "use_percentile": True},
+        ],
+        "icon": "🎨"
+    },
+
+    "DM_Anchor": {
+        "display_name": "Anchor",
+        "description": "Defensive midfielders, perhaps called a number 6, who tend to anchor midfield, protecting backline.",
+        "archetypes": ["Casemiro", "Azor Matusiwa", "Moisés Caicedo"],
+        "components": [
+            {"stat": "Defensive duels per 90", "weight": 0.28, "use_percentile": True},
+            {"stat": "Aerial duels won, %", "weight": 0.22, "use_percentile": True},
+            {"stat": "Interceptions per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "Passes per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "PAdj Interceptions", "weight": 0.12, "use_percentile": True},
+            {"stat": "Duels won, %", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "🔒"
+    },
+
+    "DM_DLP": {
+        "display_name": "DLP",
+        "description": "Deep-Lying Playmakers are ball-dominant players with excellent passing, who tend to sit in a deeper position, dictating play from deep.",
+        "archetypes": ["Mattéo Guendouzi", "Granit Xhaka", "Pedri"],
+        "components": [
+            {"stat": "Smart passes per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "Passes to final third per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Accurate passes, %", "weight": 0.15, "use_percentile": True},
+            {"stat": "Progressive passes per 90", "weight": 0.14, "use_percentile": True},
+            {"stat": "Average pass length, m", "weight": 0.12, "use_percentile": True},
+            {"stat": "xA per 90", "weight": 0.09, "use_percentile": True},
+            {"stat": "Passes to penalty area per 90", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "🎭"
+    },
+
+    "DM_BallWinner": {
+        "display_name": "Ball Winner",
+        "description": "Aggressive, high energy midfielders who are tasked with winning ball across all thirds. They primarily press, duel and intercept, trying to control middle third.",
+        "archetypes": ["Nicolás Domínguez", "Eduardo Camavinga", "Manuel Ugarte Ribeiro"],
+        "components": [
+            {"stat": "Successful defensive actions per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "Defensive duels per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "PAdj Interceptions", "weight": 0.18, "use_percentile": True},
+            {"stat": "Duels won, %", "weight": 0.17, "use_percentile": True},
+            {"stat": "Interceptions per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "Fouls per 90", "weight": -0.08, "use_percentile": True},
+        ],
+        "icon": "⚔️"
+    },
+
+    "DM_BoxToBox": {
+        "display_name": "Box-to-Box",
+        "description": "Dynamic midfielders who can contribute at both ends of pitch, and have high work rate to travel up-and-down effectively.",
+        "archetypes": ["Tanguy Ndombele", "Rabby Nzingoula", "Elliot Anderson"],
+        "components": [
+            {"stat": "Touches in final third per 90", "weight": 0.22, "use_percentile": True},
+            {"stat": "Touches in box per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Successful defensive actions per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "Progressive runs per 90", "weight": 0.16, "use_percentile": True},
+            {"stat": "Defensive duels per 90", "weight": 0.13, "use_percentile": True},
+            {"stat": "Passes per 90", "weight": 0.06, "use_percentile": True},
+            {"stat": "Shots per 90", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "🔄"
+    },
+
+    "DM_BoxCrasher": {
+        "display_name": "Box Crasher",
+        "description": "Offensively valuable midfielders, not necessarily creative, who can break into box and finish chances for their team.",
+        "archetypes": ["Scott McTominay", "Abdoulaye Doucouré", "Giuliano Simeone"],
+        "components": [
+            {"stat": "Shots per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "xG per 90", "weight": 0.22, "use_percentile": True},
+            {"stat": "Goals per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "Shot assists per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "Touches in box per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "Non-penalty goals per 90", "weight": 0.08, "use_percentile": True},
+        ],
+        "icon": "💥"
+    },
+
+    "DM_Playmaker": {
+        "display_name": "Playmaker",
+        "description": "Ball dominant, creative midfielders, primarily playing in a 8/central midfield role, creating chances and penetrating final third for their team.",
+        "archetypes": ["Rodrigo De Paul", "Habib Diarra", "Adam Wharton"],
+        "components": [
+            {"stat": "Smart passes per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "xA per 90", "weight": 0.16, "use_percentile": True},
+            {"stat": "Key passes per 90", "weight": 0.16, "use_percentile": True},
+            {"stat": "Passes per 90", "weight": 0.14, "use_percentile": True},
+            {"stat": "Passes to final third per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "Accurate passes, %", "weight": 0.11, "use_percentile": True},
+            {"stat": "Passes to penalty area per 90", "weight": 0.06, "use_percentile": True},
+            {"stat": "Shot assists per 90", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "⚡"
+    },
+
+    "DM_AttackingMid": {
+        "display_name": "Attacking Mid",
+        "description": "Attack minded midfielders who can score and create, but still tend to play in a midfield pair or trio (there is some overlap between this midfield profile and those categorised as Attacking Midfielders).",
+        "archetypes": ["Romano Schmid", "Morgan Gibbs-White", "Julian Brandt"],
+        "components": [
+            {"stat": "Shots per 90", "weight": 0.22, "use_percentile": True},
+            {"stat": "xG per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Goals per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "Non-penalty goals per 90", "weight": 0.16, "use_percentile": True},
+            {"stat": "Shot assists per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "Key passes per 90", "weight": 0.08, "use_percentile": True},
+            {"stat": "Passes to final third per 90", "weight": 0.04, "use_percentile": True},
+        ],
+        "icon": "🎯"
+    },
+
+    "DM_Destroyer": {
+        "display_name": "Destroyer",
+        "description": "Aggressive defensive midfielders who protect backline through duels, recoveries and ball winning.",
+        "archetypes": ["Bruno Fernandes", "Pierre-Emile Højbjerg", "Marc Casemiro"],
+        "components": [
+            {"stat": "Successful defensive actions per 90", "weight": 0.30, "use_percentile": True},
+            {"stat": "PAdj Interceptions", "weight": 0.20, "use_percentile": True},
+            {"stat": "DM_Destroying", "weight": 0.18, "use_percentile": True},
+            {"stat": "DM_BallWinning", "weight": 0.15, "use_percentile": True},
+            {"stat": "DM_Anchor", "weight": 0.12, "use_percentile": True},
+            {"stat": "Duels won, %", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "🗑️"
+    },
+
+    "DM_Regista": {
+        "display_name": "Regista",
+        "description": "Creative deep-lying midfielders who combine ball progression with defensive discipline. They act as deep playmakers while maintaining defensive solidity.",
+        "archetypes": ["Toni Kroos", "Dani Ceballos", "Martin Ødegaard"],
+        "components": [
+            {"stat": "DM_DLP", "weight": 0.35, "use_percentile": True},
+            {"stat": "DM_ProgPass", "weight": 0.25, "use_percentile": True},
+            {"stat": "DM_BallCarrying", "weight": 0.20, "use_percentile": True},
+            {"stat": "Passes per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "DM_Destroying", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "🎨"
+    },
+
+    "DM_Carrilero": {
+        "display_name": "Carrilero",
+        "description": "Technical defensive midfielders who progress play with the ball, providing both defensive solidity and ball progression from deep.",
+        "archetypes": ["João Palhinha", "Thiago Alcántara", "Isco"],
+        "components": [
+            {"stat": "DM_BallCarrying", "weight": 0.35, "use_percentile": True},
+            {"stat": "DM_ProgPass", "weight": 0.30, "use_percentile": True},
+            {"stat": "DM_Destroying", "weight": 0.20, "use_percentile": True},
+            {"stat": "Accurate passes, %", "weight": 0.10, "use_percentile": True},
+            {"stat": "Passes per 90", "weight": 0.05, "use_percentile": True},
+        ],
+        "icon": "🏃"
+    },
     # ========== AM AND WINGER RESPONSIBILITIES ==========
     
     "Finishing": {
@@ -245,7 +505,69 @@ COMPOSITE_ATTRIBUTES = {
         ],
         "icon": "🔥"
     },
-    
+
+    # ========== FULLBACK RESPONSIBILITIES ==========
+
+    "FB_BallCarrying": {
+        "display_name": "Ball Carrying",
+        "description": "Ability to dribble and carry ball up pitch, progressing play by eating up ground, but also taking on opponents in 1v1 situations. It's important that fullbacks and wingbacks can beat a man 1v1, as wide players are more commonly presented with this opportunity. Key for an energetic, box-to-box style wingback.",
+        "archetypes": ["Theo Hernández", "Alphonso Davies", "Achraf Hakimi"],
+        "components": [
+            {"stat": "Progressive runs per 90", "weight": 0.28, "use_percentile": True},
+            {"stat": "Successful dribbles, %", "weight": 0.25, "use_percentile": True},
+            {"stat": "Dribbles per 90", "weight": 0.18, "use_percentile": True},
+            {"stat": "Offensive duels won, %", "weight": 0.15, "use_percentile": True},
+            {"stat": "Accelerations per 90", "weight": 0.10, "use_percentile": True},
+            {"stat": "Offensive duels per 90", "weight": 0.04, "use_percentile": True},
+        ],
+        "icon": "🏃"
+    },
+
+    "Overlapping": {
+        "display_name": "Overlapping",
+        "description": "Ability to get high up the pitch and provide winger-like output. Focus on receiving the ball in advanced areas, or carrying the ball into them. Key for a flying fullback or wingback who overlaps an inverting winger.",
+        "archetypes": ["Jeremie Frimpong", "Diego Moreira", "Antonee Robinson"],
+        "components": [
+            {"stat": "Touches in final third per 90", "weight": 0.30, "use_percentile": True},
+            {"stat": "Progressive runs per 90", "weight": 0.25, "use_percentile": True},
+            {"stat": "Crosses per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "Passes to final third per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "Passes to penalty area per 90", "weight": 0.10, "use_percentile": True},
+            {"stat": "Accelerations per 90", "weight": 0.08, "use_percentile": True},
+        ],
+        "icon": "🚀"
+    },
+
+    "FinalThird": {
+        "display_name": "Final Third",
+        "description": "Ability to execute effectively with the ball inside the final third. Those players that can take on opponents to create chances, or pass and cross into the box. Focus on take ons in advanced areas. Key for fullbacks playing in an advanced role during the possession phase.",
+        "archetypes": ["Dilane Bakwa", "Keane Lewis-Potter", "Diego Moreira"],
+        "components": [
+            {"stat": "Touches in final third per 90", "weight": 0.28, "use_percentile": True},
+            {"stat": "Shot assists per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Successful dribbles, %", "weight": 0.15, "use_percentile": True},
+            {"stat": "Crosses per 90", "weight": 0.14, "use_percentile": True},
+            {"stat": "Passes to penalty area per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "Key passes per 90", "weight": 0.11, "use_percentile": True},
+        ],
+        "icon": "🎯"
+    },
+
+    "Playmaking": {
+        "display_name": "Playmaking",
+        "description": "Ability to progress and create from deeper areas, sometimes centrally, during the build up and possession phases. Found in fullbacks who are strong passers but not such effective dribblers. Key for fullbacks maintaining deeper positions during the possession phase.",
+        "archetypes": ["Trent Alexander-Arnold", "Maximilian Mittelstädt", "Nuno Mendes"],
+        "components": [
+            {"stat": "Progressive passes per 90", "weight": 0.28, "use_percentile": True},
+            {"stat": "Smart passes per 90", "weight": 0.20, "use_percentile": True},
+            {"stat": "Passes to final third per 90", "weight": 0.15, "use_percentile": True},
+            {"stat": "xA per 90", "weight": 0.14, "use_percentile": True},
+            {"stat": "Passes to penalty area per 90", "weight": 0.12, "use_percentile": True},
+            {"stat": "Key passes per 90", "weight": 0.11, "use_percentile": True},
+        ],
+        "icon": "🎨"
+    },
+
     # ========== STRIKER / CF RESPONSIBILITIES ==========
     
     # "CF_Finishing": {

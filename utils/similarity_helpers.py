@@ -49,10 +49,10 @@ def map_position_to_group(position: str) -> str:
                 if "CB" in POSITION_RANKINGS:
                     return "CB"
 
-            # Fullback/WB group → FB/WB ranking
+            # Fullback/WB group → Fullback ranking
             elif "Fullback" in group_name or "WB" in group_name:
-                if "FB/WB" in POSITION_RANKINGS:
-                    return "FB/WB"
+                if "Fullback" in POSITION_RANKINGS:
+                    return "Fullback"
 
             # DM group → DM/CM ranking
             elif "DM" in group_name:
@@ -188,6 +188,7 @@ def get_position_similarity_weights(
     """
     # Step 1: Map position to group
     position_group = map_position_to_group(player_position)
+    print("")
 
     # Step 2: Determine which preset to use
     if preset_key == "auto":

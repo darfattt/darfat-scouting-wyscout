@@ -7,9 +7,12 @@ import os
 from config.stat_categories import STAT_CATEGORIES, PLAYER_INFO_COLUMNS, PLAYER_COLORS
 from config.composite_attributes import COMPOSITE_ATTRIBUTES
 from config.defender_presets import DEFENDER_PRESETS
+from config.fullback_presets import FULLBACK_PRESETS
+from config.midfielder_presets import MIDFIELDER_PRESETS
 from config.forward_presets import FORWARD_PRESETS
 from config.attacking_midfielder_presets import ATTACKING_MIDFIELDER_PRESETS
 from config.position_groups import POSITION_GROUPS, get_position_group_options
+from utils.similarity_helpers import get_presets_for_position, map_position_to_group
 from utils.data_loader import (
     load_all_league_data, calculate_percentiles, calculate_composite_attributes_batch,
     get_player_info, get_player_stats, get_all_stat_columns,
@@ -312,7 +315,8 @@ def render_player_comparison_page(df_filtered,selected_position_group):
                 PLAYER_INFO_COLUMNS['age'],
                 PLAYER_INFO_COLUMNS['team'],
                 PLAYER_INFO_COLUMNS['position'],
-                PLAYER_INFO_COLUMNS['country']
+                PLAYER_INFO_COLUMNS['country'],
+                PLAYER_INFO_COLUMNS['minutes']
             ]].sort_values(PLAYER_INFO_COLUMNS['name']),
             use_container_width=True,
             hide_index=True
@@ -385,49 +389,61 @@ def render_player_comparison_page(df_filtered,selected_position_group):
 def get_relevant_presets(df_filtered):
     """
     Get relevant presets based on position groups present in filtered data
-    
+
     Args:
         df_filtered: Filtered player dataframe
-    
+
     Returns:
         Dict of relevant presets
     """
     from config.position_groups import POSITION_GROUPS
-    
+
     # Check what positions are in filtered data
     positions_in_data = df_filtered['Position'].unique()
-    
+
     # Get position groups
     cf_positions = POSITION_GROUPS.get("CF", [])
     winger_positions = POSITION_GROUPS.get("Winger", [])
     am_positions = POSITION_GROUPS.get("AM", [])
     defender_positions = POSITION_GROUPS.get("Defender", [])
+    fullback_positions = POSITION_GROUPS.get("Fullback", [])
+    dm_positions = POSITION_GROUPS.get("DM", [])
     all_forward_positions = cf_positions + winger_positions + am_positions
-    
+
     # Determine what positions are present
     has_strikers = any(pos in positions_in_data for pos in cf_positions)
     has_wingers = any(pos in positions_in_data for pos in winger_positions)
     has_am = any(pos in positions_in_data for pos in am_positions)
     has_defenders = any(pos in positions_in_data for pos in defender_positions)
+    has_fullbacks = any(pos in positions_in_data for pos in fullback_positions)
+    has_dms = any(pos in positions_in_data for pos in dm_positions)
     has_forwards = has_strikers or has_wingers or has_am
-    
+
     # Build relevant presets dict
     all_presets = {}
-    
+
     if has_defenders:
         all_presets.update(DEFENDER_PRESETS)
-    
+
+    if has_fullbacks:
+        all_presets.update(FULLBACK_PRESETS)
+
+    if has_dms:
+        all_presets.update(MIDFIELDER_PRESETS)
+
     if has_forwards:
         # Include all forward and AM presets
         all_presets.update(FORWARD_PRESETS)
         all_presets.update(ATTACKING_MIDFIELDER_PRESETS)
-    
+
     # If no positions detected, return all presets as fallback
     if not all_presets:
         all_presets.update(DEFENDER_PRESETS)
+        all_presets.update(FULLBACK_PRESETS)
+        all_presets.update(MIDFIELDER_PRESETS)
         all_presets.update(FORWARD_PRESETS)
         all_presets.update(ATTACKING_MIDFIELDER_PRESETS)
-    
+
     return all_presets
 
 
@@ -816,7 +832,7 @@ def get_top_stats_with_weights(df_filtered: pd.DataFrame, selected_player: str, 
     return weights
 
 
-def render_player_similarity_page(df_filtered):
+def render_player_similarity_page(df_filtered,selected_position_group):
     """
     Render Player Similarity page content
 
@@ -906,7 +922,9 @@ def render_player_similarity_page(df_filtered):
     st.markdown("---")
 
     # ========== PRESET SELECTOR SECTION ==========
-    player_position = ref_player_info['Position']
+    player_position = selected_position_group 
+    #ref_player_info['Position']
+    print(f"Selected position group : {player_position}")
 
     # Get position group for preset filtering
     position_group_for_presets = map_position_to_group(player_position)
@@ -1202,7 +1220,7 @@ def render_player_similarity_page(df_filtered):
                         contract_expires_before=contract_expires_before,
                         exclude_null_contract=exclude_null_contract,
                         same_position_only=False,
-                        top_n=50
+                        top_n=30
                     )
 
                     if len(results_df) == 0:
@@ -1323,19 +1341,21 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
         if metric in display_df.columns and metric not in display_cols:
             display_cols.append(metric)
 
-    all_comp_cols = [col for col in display_df.columns if col.startswith('COMP_')]
-    for comp_col in all_comp_cols:
-        if comp_col not in display_cols:
-            display_cols.append(comp_col)
+#commented by darfat to prevent duplication
+    # all_comp_cols = [col for col in display_df.columns if col.startswith('COMP_')]
+    # for comp_col in all_comp_cols:
+    #     if comp_col not in display_cols:
+    #         display_cols.append(comp_col)
 
-    display_cols = [col for col in display_cols if col in display_df.columns]
-    display_df = display_df[display_cols]
+    # display_cols = [col for col in display_cols if col in display_df.columns]
+    # display_df = display_df[display_cols]
 
-    rename_dict = {}
-    for col in display_df.columns:
-        if col.startswith('COMP_'):
-            rename_dict[col] = composite_display_names.get(col, col)
-    display_df = display_df.rename(columns=rename_dict)
+    # rename_dict = {}
+    # for col in display_df.columns:
+    #     if col.startswith('COMP_'):
+    #         rename_dict[col] = composite_display_names.get(col, col)
+    # display_df = display_df.rename(columns=rename_dict)
+#end duplication
 
     # Column configuration
     column_config = {
@@ -1374,6 +1394,7 @@ def display_similarity_results_table(results_df, reference_player, weights, comp
                 width="small"
             )
 
+    #still have duplicate columns darfat
     all_comp_cols = [col for col in display_df.columns if col.startswith('COMP_')]
     for comp_col in all_comp_cols:
         if comp_col in display_df.columns:
@@ -2056,7 +2077,7 @@ def main():
     elif page == "🎯 Player Finder":
         render_player_finder_page(df_filtered)
     elif page == "🔍 Player Similarity":
-        render_player_similarity_page(df_filtered)
+        render_player_similarity_page(df_filtered,selected_position_group)
 
     # Footer
     st.markdown("---")

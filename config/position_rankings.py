@@ -23,30 +23,24 @@ POSITION_RANKINGS = {
     "Fullback": {
         "display_name": "Full Backs / Wing Backs",
         "key_attributes": [
+            "FB_BallCarrying",
+            "Overlapping",
+            "FinalThird",
+            "Playmaking",
+            "Security",
+            "Pressing",
             "Duelling",
-            "BallCarrying",
-            "ProgPass",
-            "ProactiveDefending",
-            "Security"
+            "BoxDefending"
         ]
     },
 
-    "DM": {
-        "display_name": "Defensive / Central Midfielders",
-        "key_attributes": [
-            "Security",
-            "ProgPass",
-            "ProactiveDefending",
-            "Duelling",
-            "Sweeping"
-        ]
-    },
+   
 
     "Wide CB": {
         "display_name": "Wide Centre Backs",
         "key_attributes": [
             "BallCarrying",
-            "Creativity",
+            "Creativity_CB",
             "ProgPass",
             "Duelling",
             "ProactiveDefending"
@@ -59,11 +53,37 @@ POSITION_RANKINGS = {
             "Security",
             "Sweeping",
             "BoxDefending",
-            "Creativity",
+            "Creativity_CB",
             "BallCarrying"
         ]
     },
-    
+
+    "FB/WB": {
+        "display_name": "Full Backs / Wing Backs",
+        "key_attributes": [
+            "FB_BallCarrying",
+            "Overlapping",
+            "FinalThird",
+            "Playmaking",
+            "Security",
+            "Pressing",
+            "Duelling",
+            "BoxDefending"
+        ]
+    },
+
+     "DM": {
+        "display_name": "Central Midfielders",
+        "key_attributes": [
+            "DM_Destroying",
+            "DM_BallWinning",
+            "DM_Dictating",
+            "DM_ProgPass",
+            "DM_BallCarrying",
+            "DM_Creativity",
+            "DM_Anchor"
+        ]
+    },
     # ========== FORWARD POSITIONS ==========
     
     "CF": {
